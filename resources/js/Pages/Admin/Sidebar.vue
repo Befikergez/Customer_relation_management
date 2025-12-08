@@ -10,7 +10,8 @@ import {
   LayoutDashboard,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Search
 } from 'lucide-vue-next'
 import { ref, computed } from 'vue'
 
@@ -26,6 +27,11 @@ const isCollapsed = ref(false)
 
 const logout = () => {
   router.post('/logout')
+}
+
+// Navigate to search page
+const goToSearch = () => {
+  router.get('/admin/search')
 }
 
 // Create URL for each table
@@ -51,6 +57,11 @@ const isDashboardActive = computed(() => {
   return page.url === '/dashboard'
 })
 
+// Check if search is active
+const isSearchActive = computed(() => {
+  return page.url === '/admin/search'
+})
+
 // Check if settings is active
 const isSettingsActive = () => {
   return page.url.startsWith('/admin/settings')
@@ -60,6 +71,7 @@ const isSettingsActive = () => {
 const getIcon = (name) => {
   switch (name) {
     case 'Dashboard': return LayoutDashboard
+    case 'Search': return Search
     case 'Customers': return UserCircle2
     case 'Opportunities': return Briefcase
     case 'Potential Customers': return UserCircle2
@@ -126,7 +138,7 @@ const sidebarWidth = computed(() => {
 <template>
   <!-- Sidebar -->
   <aside 
-    class="bg-gradient-to-b from-blue-900 to-blue-800 text-white min-h-screen flex flex-col transition-all duration-300 ease-in-out relative"
+    class="bg-gradient-to-b from-blue-900 to-blue-800 text-white min-h-screen flex flex-col transition-all duration-300 ease-in-out fixed left-0 top-0 h-screen z-40"
     :class="sidebarWidth"
   >
     
@@ -141,16 +153,16 @@ const sidebarWidth = computed(() => {
         />
         <h1 
           v-if="!isCollapsed"
-          class="text-xl font-bold text-white ml-3 transition-all duration-300"
+          class="text-3xl font-bold text-white ml-3 transition-all duration-300"
         >
           CRM System
         </h1>
       </div>
 
-      <!-- Toggle Button - Below Logo -->
+      <!-- Toggle Button - Moved to top right corner -->
       <button
         @click="toggleSidebar"
-        class="absolute -right-3 bottom-2 bg-blue-700 hover:bg-blue-600 text-white p-2 rounded-full border-2 border-blue-800 z-10 transition-all duration-200 hover:scale-110 shadow-lg flex items-center justify-center"
+        class="absolute top-4 right-4 bg-blue-700 hover:bg-blue-600 text-white p-2 rounded-full border-2 border-blue-800 z-10 transition-all duration-200 hover:scale-110 shadow-lg flex items-center justify-center"
       >
         <ChevronLeft v-if="!isCollapsed" class="w-4 h-4" />
         <ChevronRight v-else class="w-4 h-4" />
@@ -161,22 +173,94 @@ const sidebarWidth = computed(() => {
     <nav class="flex-1 p-4 overflow-y-auto">
       <h2 
         v-if="!isCollapsed"
-        class="text-sm font-semibold mb-4 text-blue-200 uppercase tracking-wider transition-all duration-300"
+        class="text-base font-semibold mb-4 text-blue-200 uppercase tracking-wider transition-all duration-300"
       >
         Navigation
       </h2>
 
       <!-- Navigation Items -->
       <div class="space-y-2">
+        <!-- Dashboard -->
         <Link 
-          v-for="item in getNavigationItems(tables)"
+          :href="'/dashboard'"
+          class="flex items-center gap-3 py-3 rounded-xl transition-all duration-200 group relative"
+          :class="[
+            isDashboardActive
+              ? 'bg-blue-700 text-white font-semibold shadow-md'
+              : 'hover:bg-blue-600 hover:text-white hover:shadow-md',
+            isCollapsed ? 'px-3 justify-center' : 'px-4'
+          ]"
+          :title="isCollapsed ? 'Dashboard' : ''"
+        >
+          <!-- Active indicator dot for collapsed state -->
+          <div 
+            v-if="isCollapsed && isDashboardActive"
+            class="absolute left-1 w-1.5 h-1.5 bg-white rounded-full"
+          ></div>
+
+          <LayoutDashboard class="w-6 h-6 flex-shrink-0 transition-all duration-300" />
+          
+          <span 
+            v-if="!isCollapsed"
+            class="transition-all duration-300 whitespace-nowrap text-lg font-medium"
+          >
+            Dashboard
+          </span>
+
+          <!-- Tooltip for collapsed state -->
+          <div 
+            v-if="isCollapsed"
+            class="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none"
+          >
+            Dashboard
+          </div>
+        </Link>
+
+        <!-- Search Button - Below Dashboard -->
+        <button
+          @click="goToSearch"
+          class="flex items-center gap-3 py-3 rounded-xl transition-all duration-200 group relative w-full"
+          :class="[
+            isSearchActive
+              ? 'bg-blue-700 text-white font-semibold shadow-md'
+              : 'hover:bg-blue-600 hover:text-white hover:shadow-md',
+            isCollapsed ? 'px-3 justify-center' : 'px-4'
+          ]"
+          :title="isCollapsed ? 'Search' : ''"
+        >
+          <!-- Active indicator dot for collapsed state -->
+          <div 
+            v-if="isCollapsed && isSearchActive"
+            class="absolute left-1 w-1.5 h-1.5 bg-white rounded-full"
+          ></div>
+
+          <Search class="w-6 h-6 flex-shrink-0 transition-all duration-300" />
+          
+          <span 
+            v-if="!isCollapsed"
+            class="transition-all duration-300 whitespace-nowrap text-lg font-medium"
+          >
+            Search
+          </span>
+
+          <!-- Tooltip for collapsed state -->
+          <div 
+            v-if="isCollapsed"
+            class="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none"
+          >
+            Search
+          </div>
+        </button>
+
+        <!-- Other Navigation Items -->
+        <Link 
+          v-for="item in getNavigationItems(tables).filter(item => item.name !== 'Dashboard')"
           :key="item.name"
           :href="item.url || getUrl(item)"
           class="flex items-center gap-3 py-3 rounded-xl transition-all duration-200 group relative"
           :class="[
-            (item.name === 'Dashboard' && isDashboardActive) || 
             (item.name === 'Settings' && isSettingsActive()) || 
-            (item.name !== 'Dashboard' && item.name !== 'Settings' && isActive(item))
+            (item.name !== 'Settings' && isActive(item))
               ? 'bg-blue-700 text-white font-semibold shadow-md'
               : 'hover:bg-blue-600 hover:text-white hover:shadow-md',
             isCollapsed ? 'px-3 justify-center' : 'px-4'
@@ -185,18 +269,18 @@ const sidebarWidth = computed(() => {
         >
           <!-- Active indicator dot for collapsed state -->
           <div 
-            v-if="isCollapsed && ((item.name === 'Dashboard' && isDashboardActive) || (item.name === 'Settings' && isSettingsActive()) || (item.name !== 'Dashboard' && item.name !== 'Settings' && isActive(item)))"
+            v-if="isCollapsed && ((item.name === 'Settings' && isSettingsActive()) || (item.name !== 'Settings' && isActive(item)))"
             class="absolute left-1 w-1.5 h-1.5 bg-white rounded-full"
           ></div>
 
           <component 
             :is="item.icon || getIcon(item.name)" 
-            class="w-5 h-5 flex-shrink-0 transition-all duration-300"
+            class="w-6 h-6 flex-shrink-0 transition-all duration-300"
           />
           
           <span 
             v-if="!isCollapsed"
-            class="transition-all duration-300 whitespace-nowrap"
+            class="transition-all duration-300 whitespace-nowrap text-lg font-medium"
           >
             {{ item.name }}
           </span>
@@ -220,9 +304,9 @@ const sidebarWidth = computed(() => {
         :class="isCollapsed ? 'px-3' : 'px-4'"
         :title="isCollapsed ? 'Logout' : ''"
       >
-        <LogOut class="w-5 h-5 flex-shrink-0" />
+        <LogOut class="w-6 h-6 flex-shrink-0" />
         
-        <span v-if="!isCollapsed" class="transition-all duration-300">
+        <span v-if="!isCollapsed" class="transition-all duration-300 text-lg font-medium">
           Logout
         </span>
 
@@ -236,6 +320,9 @@ const sidebarWidth = computed(() => {
       </button>
     </div>
   </aside>
+
+  <!-- Main content spacer -->
+  <div :class="sidebarWidth"></div>
 </template>
 
 <style scoped>
@@ -245,11 +332,11 @@ aside {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 /* Smooth transitions */

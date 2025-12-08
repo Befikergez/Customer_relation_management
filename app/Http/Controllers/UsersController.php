@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\User;
+use App\Models\RoleCommissionSetting;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -21,13 +22,15 @@ class UsersController extends Controller
     {
         $this->checkPermission('view users');
 
-        $users = User::with('roles')->latest()->get();
+        $users = User::with('roles')->latest()->paginate(10);
         $tables = NavigationService::getTablesForUser(auth()->user());
+        $commissionSettings = RoleCommissionSetting::all()->keyBy('role_name');
 
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
             'tables' => $tables,
-            'permissions' => $this->getCrudPermissions('users')
+            'permissions' => $this->getCrudPermissions('users'),
+            'commissionSettings' => $commissionSettings
         ]);
     }
 
@@ -36,10 +39,21 @@ class UsersController extends Controller
         $this->checkPermission('view users');
 
         $tables = NavigationService::getTablesForUser(auth()->user());
+        $commissionSettings = RoleCommissionSetting::all()->keyBy('role_name');
+        
+        // Get user's commission info
+        $commissionInfo = [
+            'has_commission' => $user->has_commission,
+            'commission_rate' => $user->commission_rate,
+            'effective_commission_rate' => $user->effective_commission_rate,
+            'can_edit_commission' => $user->canEditCommission()
+        ];
 
         return Inertia::render('Admin/Users/Show', [
             'user' => $user->load('roles'),
             'tables' => $tables,
+            'commissionInfo' => $commissionInfo,
+            'commissionSettings' => $commissionSettings
         ]);
     }
 
@@ -48,10 +62,22 @@ class UsersController extends Controller
         $this->checkPermission('create users');
 
         $tables = NavigationService::getTablesForUser(auth()->user());
+        $commissionSettings = RoleCommissionSetting::all()->keyBy('role_name');
+        $roles = Role::all()->map(function($role) use ($commissionSettings) {
+            $setting = $commissionSettings->get($role->name);
+            return [
+                'id' => $role->id,
+                'name' => $role->name,
+                'has_commission' => $setting ? $setting->has_commission : false,
+                'is_commission_editable' => $setting ? $setting->is_commission_editable : true,
+                'default_commission_rate' => $setting ? $setting->default_commission_rate : 0
+            ];
+        });
 
         return Inertia::render('Admin/Users/Create', [
-            'roles' => Role::all(),
+            'roles' => $roles,
             'tables' => $tables,
+            'commissionSettings' => $commissionSettings
         ]);
     }
 
@@ -65,6 +91,7 @@ class UsersController extends Controller
             'password' => 'required|confirmed|min:8',
             'roles' => 'array',
             'profile_image' => 'nullable|image|max:2048',
+            'commission_rate' => 'nullable|numeric|min:0|max:100|decimal:0,2',
         ]);
 
         $userData = [
@@ -72,6 +99,15 @@ class UsersController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
         ];
+
+        // Dynamic commission rate handling
+        $commissionData = $this->getCommissionDataForRoles(
+            $validated['commission_rate'] ?? null, 
+            $validated['roles'] ?? []
+        );
+        
+        $userData['commission_rate'] = $commissionData['commission_rate'];
+        $userData['has_commission'] = $commissionData['has_commission'];
 
         if ($request->hasFile('profile_image')) {
             $imagePath = $request->file('profile_image')->store('profile-images', 'public');
@@ -93,12 +129,31 @@ class UsersController extends Controller
         $this->checkPermission('edit users');
 
         $tables = NavigationService::getTablesForUser(auth()->user());
+        $commissionSettings = RoleCommissionSetting::all()->keyBy('role_name');
+        
+        // Determine if commission field should be shown/editable
+        $canEditCommission = $user->canEditCommission();
+        $showCommissionField = $user->has_commission;
+
+        $roles = Role::all()->map(function($role) use ($commissionSettings) {
+            $setting = $commissionSettings->get($role->name);
+            return [
+                'id' => $role->id,
+                'name' => $role->name,
+                'has_commission' => $setting ? $setting->has_commission : false,
+                'is_commission_editable' => $setting ? $setting->is_commission_editable : true,
+                'default_commission_rate' => $setting ? $setting->default_commission_rate : 0
+            ];
+        });
 
         return Inertia::render('Admin/Users/Edit', [
             'user' => $user->load('roles'),
-            'roles' => Role::all(),
+            'roles' => $roles,
             'userRoles' => $user->roles->pluck('name'),
             'tables' => $tables,
+            'commissionSettings' => $commissionSettings,
+            'canEditCommission' => $canEditCommission,
+            'showCommissionField' => $showCommissionField
         ]);
     }
 
@@ -112,6 +167,7 @@ class UsersController extends Controller
             'password' => 'nullable|confirmed|min:8',
             'roles' => 'array',
             'profile_image' => 'nullable|image|max:2048',
+            'commission_rate' => 'nullable|numeric|min:0|max:100|decimal:0,2',
         ]);
 
         $userData = [
@@ -122,6 +178,16 @@ class UsersController extends Controller
         if ($request->filled('password')) {
             $userData['password'] = Hash::make($validated['password']);
         }
+
+        // Dynamic commission rate handling
+        $commissionData = $this->getCommissionDataForRoles(
+            $validated['commission_rate'] ?? null, 
+            $validated['roles'] ?? [],
+            $user->commission_rate
+        );
+        
+        $userData['commission_rate'] = $commissionData['commission_rate'];
+        $userData['has_commission'] = $commissionData['has_commission'];
 
         if ($request->hasFile('profile_image')) {
             if ($user->profile_image && Storage::disk('public')->exists($user->profile_image)) {
@@ -213,5 +279,119 @@ class UsersController extends Controller
                 'message' => 'Failed to delete users.'
             ], 500);
         }
+    }
+
+    /**
+     * Update commission rate for user with commission-enabled roles
+     */
+    public function updateCommission(Request $request, User $user)
+    {
+        $this->checkPermission('edit users');
+
+        $validated = $request->validate([
+            'commission_rate' => 'required|numeric|min:0|max:100|decimal:0,2',
+        ]);
+
+        // Check if user has any roles that allow commission and if it's editable
+        $userRoles = $user->roles->pluck('name')->toArray();
+        $hasEditableCommissionRole = RoleCommissionSetting::whereIn('role_name', $userRoles)
+            ->where('has_commission', true)
+            ->where('is_commission_editable', true)
+            ->exists();
+
+        if (!$hasEditableCommissionRole) {
+            return back()->with('error', 'Commission can only be set for users with commission-enabled and editable roles.');
+        }
+
+        $user->update(['commission_rate' => $validated['commission_rate']]);
+
+        return back()->with('success', 'Commission rate updated successfully.');
+    }
+
+    /**
+     * Helper method to determine commission data based on roles
+     */
+    private function getCommissionDataForRoles(?float $commissionRate, array $roles, ?float $currentRate = null): array
+    {
+        // If no roles selected, return default
+        if (empty($roles)) {
+            return [
+                'commission_rate' => null,
+                'has_commission' => false
+            ];
+        }
+
+        // Get commission settings for all roles
+        $commissionSettings = RoleCommissionSetting::whereIn('role_name', $roles)->get();
+        
+        $hasCommissionRole = $commissionSettings->where('has_commission', true)->isNotEmpty();
+        $isCommissionEditable = $commissionSettings->where('is_commission_editable', true)->isNotEmpty();
+        
+        // If no roles have commission, return null
+        if (!$hasCommissionRole) {
+            return [
+                'commission_rate' => null,
+                'has_commission' => false
+            ];
+        }
+        
+        // If commission is provided and editable, use it
+        if ($commissionRate !== null && $isCommissionEditable) {
+            return [
+                'commission_rate' => $commissionRate,
+                'has_commission' => true
+            ];
+        }
+        
+        // If no commission provided but user has commission roles, use the highest default rate
+        if ($commissionRate === null && $hasCommissionRole) {
+            $defaultRate = $commissionSettings->where('has_commission', true)
+                ->max('default_commission_rate');
+                
+            return [
+                'commission_rate' => $defaultRate ?: 0,
+                'has_commission' => true
+            ];
+        }
+        
+        // Return current data if no changes needed
+        return [
+            'commission_rate' => $currentRate,
+            'has_commission' => $hasCommissionRole
+        ];
+    }
+
+    /**
+     * Get commission settings for roles (useful for frontend)
+     */
+    public function getCommissionSettings()
+    {
+        $this->checkPermission('view users');
+
+        $commissionSettings = RoleCommissionSetting::all()->keyBy('role_name');
+
+        return response()->json([
+            'commission_settings' => $commissionSettings
+        ]);
+    }
+    
+    /**
+     * Get users with commission
+     */
+    public function getUsersWithCommission()
+    {
+        $this->checkPermission('view users');
+        
+        $users = User::where('has_commission', true)
+            ->with('roles')
+            ->latest()
+            ->paginate(20);
+            
+        $commissionSettings = RoleCommissionSetting::all()->keyBy('role_name');
+        
+        return Inertia::render('Admin/Commission/Users', [
+            'users' => $users,
+            'commissionSettings' => $commissionSettings
+        ]);
     }
 }

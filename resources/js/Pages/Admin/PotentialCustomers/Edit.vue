@@ -93,6 +93,48 @@
                     </div>
                   </div>
 
+                  <!-- City -->
+                  <div>
+                    <label for="city_id" class="block text-sm font-medium text-slate-700 mb-2">
+                      City
+                    </label>
+                    <select
+                      id="city_id"
+                      v-model="form.city_id"
+                      @change="onCityChange"
+                      class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
+                    >
+                      <option value="">Select City</option>
+                      <option v-for="city in cities" :key="city.id" :value="city.id">
+                        {{ city.name }}
+                      </option>
+                    </select>
+                    <div v-if="form.errors.city_id" class="text-red-600 text-sm mt-1">
+                      {{ form.errors.city_id }}
+                    </div>
+                  </div>
+
+                  <!-- Subcity -->
+                  <div>
+                    <label for="subcity_id" class="block text-sm font-medium text-slate-700 mb-2">
+                      Subcity
+                    </label>
+                    <select
+                      id="subcity_id"
+                      v-model="form.subcity_id"
+                      :disabled="!form.city_id"
+                      class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select Subcity</option>
+                      <option v-for="subcity in availableSubcities" :key="subcity.id" :value="subcity.id">
+                        {{ subcity.name }}
+                      </option>
+                    </select>
+                    <div v-if="form.errors.subcity_id" class="text-red-600 text-sm mt-1">
+                      {{ form.errors.subcity_id }}
+                    </div>
+                  </div>
+
                   <!-- Remarks -->
                   <div class="md:col-span-2">
                     <label for="remarks" class="block text-sm font-medium text-slate-700 mb-2">
@@ -170,7 +212,7 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import {
@@ -183,7 +225,15 @@ import {
 const props = defineProps({
   potentialCustomer: Object,
   tables: Array,
-  errors: Object
+  errors: Object,
+  cities: Array,
+  subcities: Array
+})
+
+// Computed property for available subcities
+const availableSubcities = computed(() => {
+  if (!form.city_id) return []
+  return props.subcities.filter(subcity => subcity.city_id == form.city_id)
 })
 
 // Initialize form with customer data
@@ -194,9 +244,17 @@ const form = reactive({
   location: props.potentialCustomer.location || '',
   remarks: props.potentialCustomer.remarks || '',
   status: props.potentialCustomer.status || 'draft',
+  city_id: props.potentialCustomer.city_id || '',
+  subcity_id: props.potentialCustomer.subcity_id || '',
   processing: false,
   errors: props.errors || {}
 })
+
+// Handle city change
+const onCityChange = () => {
+  // Reset subcity when city changes
+  form.subcity_id = ''
+}
 
 // Submit form
 const submitForm = () => {
@@ -222,6 +280,8 @@ const resetForm = () => {
   form.location = props.potentialCustomer.location || ''
   form.remarks = props.potentialCustomer.remarks || ''
   form.status = props.potentialCustomer.status || 'draft'
+  form.city_id = props.potentialCustomer.city_id || ''
+  form.subcity_id = props.potentialCustomer.subcity_id || ''
   form.errors = {}
 }
 

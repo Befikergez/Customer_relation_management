@@ -19,13 +19,13 @@
             </div>
           </div>
           <button 
-            @click="visitIndex"
+            @click="goBackToCustomer"
             class="group bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 hover:bg-blue-50 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center space-x-3 transform hover:-translate-y-0.5"
           >
             <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
               <ArrowLeftIcon class="w-4 h-4 text-blue-600" />
             </div>
-            <span>Back to Proposals</span>
+            <span>Back to customer</span>
           </button>
         </div>
 

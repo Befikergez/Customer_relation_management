@@ -1,220 +1,302 @@
 <template>
-  <div class="min-h-screen bg-slate-50 flex">
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 flex">
     <Sidebar :tables="tables" />
     
     <div class="flex-1">
-      <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50">
-        <!-- Header -->
-        <div class="bg-white border-b border-blue-200 px-6 py-6">
-          <div class="flex justify-between items-center">
-            <div>
-              <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">Contracts</h1>
-              <p class="text-slate-600 mt-2">Manage customer contracts and agreements</p>
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-8">
+          <div class="space-y-2">
+            <div class="flex items-center space-x-4">
+              <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <DocumentTextIcon class="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 class="text-3xl font-bold text-slate-800">Contracts</h1>
+                <p class="text-slate-600 text-lg">Manage customer contracts</p>
+              </div>
             </div>
-            <a 
-              v-if="permissions.create"
-              href="/admin/contracts/create"
-              class="bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-            >
-              <PlusIcon class="w-5 h-5" />
-              <span>Create Contract</span>
-            </a>
+          </div>
+          <button 
+            v-if="permissions.create"
+            @click="visitCreate"
+            class="group bg-gradient-to-r from-blue-500 to-teal-500 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center space-x-3 transform hover:-translate-y-0.5 hover:from-blue-600 hover:to-teal-600"
+          >
+            <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+              <PlusIcon class="w-4 h-4 text-white" />
+            </div>
+            <span>New Contract</span>
+          </button>
+        </div>
+
+        <!-- Results Count -->
+        <div v-if="contracts.data && contracts.data.length > 0" class="mb-4">
+          <p class="text-sm text-slate-600">
+            Showing {{ contracts.meta?.from || 0 }} to {{ contracts.meta?.to || 0 }} of {{ contracts.meta?.total || 0 }} contracts
+          </p>
+        </div>
+
+        <div v-if="contracts.data && contracts.data.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div
+            v-for="contract in contracts.data"
+            :key="contract.id"
+            class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-300 group hover:border-blue-200"
+          >
+            <div class="h-1.5 bg-slate-100 relative overflow-hidden">
+              <div 
+                class="h-full transition-all duration-1000 ease-out"
+                :class="{
+                  'w-full bg-gradient-to-r from-teal-500 to-blue-500': contract.status === 'accepted',
+                  'w-1/2 bg-gradient-to-r from-blue-500 to-teal-500': contract.status === 'first_contract_sent', 
+                  'w-1/4 bg-gradient-to-r from-slate-500 to-slate-400': contract.status === 'draft',
+                  'w-full bg-gradient-to-r from-rose-500 to-red-500': contract.status === 'rejected'
+                }"
+              ></div>
+            </div>
+
+            <div class="p-6">
+              <div class="flex items-start justify-between mb-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
+                  <DocumentTextIcon class="w-6 h-6 text-white" />
+                </div>
+                <div class="flex flex-col items-end">
+                  <span :class="`px-3 py-1 rounded-full text-xs font-semibold ${
+                    contract.status === 'accepted' 
+                      ? 'bg-teal-100 text-teal-800 border border-teal-200' 
+                      : contract.status === 'first_contract_sent'
+                      ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                      : contract.status === 'draft'
+                      ? 'bg-slate-100 text-slate-800 border border-slate-200'
+                      : 'bg-rose-100 text-rose-800 border border-rose-200'
+                  }`">
+                    {{ formatStatus(contract.status) }}
+                  </span>
+                  <span class="text-lg font-bold text-slate-800 mt-1">${{ contract.total_value }}</span>
+                </div>
+              </div>
+
+              <h3 class="text-lg font-bold text-slate-800 mb-3 line-clamp-2 group-hover:text-blue-700 transition-colors">
+                {{ contract.contract_title }}
+              </h3>
+              <p class="text-slate-600 text-sm mb-4 line-clamp-3 leading-relaxed">
+                {{ contract.contract_description }}
+              </p>
+
+              <div class="space-y-3 mb-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-300">
+                    <UserIcon class="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-slate-500 font-medium">Customer</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ contract.customer?.name || 'Unknown' }}</p>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-300">
+                    <CalendarIcon class="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-slate-500 font-medium">Duration</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">
+                      {{ formatDate(contract.start_date) }} - {{ formatDate(contract.end_date) }}
+                    </p>
+                  </div>
+                </div>
+                <div v-if="contract.proposal" class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-300">
+                    <DocumentTextIcon class="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-slate-500 font-medium">From Proposal</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ contract.proposal?.title || 'N/A' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="contract.file" class="flex items-center space-x-3 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <DocumentIcon class="w-5 h-5 text-blue-600" />
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-blue-800 truncate">{{ getFileName(contract.file) }}</p>
+                </div>
+                <button
+                  @click="downloadFile(contract.id)"
+                  class="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  title="Download File"
+                >
+                  Download
+                </button>
+              </div>
+
+              <div class="flex flex-col gap-2 pt-4 border-t border-slate-200">
+                <div class="flex gap-2">
+                  <button 
+                    @click.prevent="viewContract(contract.id)"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-all duration-200 flex items-center space-x-1"
+                  >
+                    <EyeIcon class="w-3 h-3" />
+                    <span>View</span>
+                  </button>
+                  
+                  <button 
+                    v-if="permissions.edit && contract.status !== 'accepted' && contract.status !== 'rejected'"
+                    @click="visitEdit(contract.id)"
+                    class="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 text-sm font-semibold"
+                  >
+                    <PencilIcon class="w-4 h-4" />
+                    <span>Edit</span>
+                  </button>
+                </div>
+
+                <div class="flex gap-2" v-if="contract.status === 'first_contract_sent'">
+                  <button 
+                    v-if="permissions.approve"
+                    @click="approveContract(contract.id)"
+                    class="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-all duration-200 text-sm font-semibold"
+                  >
+                    <CheckIcon class="w-4 h-4" />
+                    <span>Approve</span>
+                  </button>
+                  
+                  <button 
+                    v-if="permissions.reject"
+                    @click="rejectContract(contract.id)"
+                    class="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all duration-200 text-sm font-semibold"
+                  >
+                    <XMarkIcon class="w-4 h-4" />
+                    <span>Reject</span>
+                  </button>
+                </div>
+
+                <button 
+                  v-if="permissions.delete && contract.status !== 'accepted'"
+                  @click="deleteContract(contract.id)"
+                  class="w-full flex items-center justify-center space-x-2 px-3 py-2.5 bg-white border border-rose-300 text-rose-700 rounded-lg hover:bg-rose-50 hover:border-rose-400 transition-all duration-200 text-sm font-semibold"
+                >
+                  <TrashIcon class="w-4 h-4" />
+                  <span>Delete Contract</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Content -->
-        <div class="p-6">
-          <!-- Stats Overview -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white rounded-2xl border border-blue-200 p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300">
-              <div class="text-3xl font-bold text-slate-900 mb-3">{{ totalContracts }}</div>
-              <div class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Total Contracts</div>
-              <div class="w-16 h-1 bg-gradient-to-r from-blue-400 to-teal-400 rounded-full mx-auto mt-4"></div>
+        <div v-else class="text-center py-16">
+          <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <DocumentTextIcon class="w-10 h-10 text-white" />
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 mb-3">No contracts yet</h3>
+          <p class="text-slate-600 mb-8 max-w-md mx-auto">Start by creating your first contract for customers.</p>
+          <button 
+            v-if="permissions.create"
+            @click="visitCreate"
+            class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-xl hover:from-blue-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold"
+          >
+            <PlusIcon class="w-5 h-5 mr-2" />
+            Create First Contract
+          </button>
+        </div>
+
+        <!-- Enhanced Pagination -->
+        <div v-if="contracts.links && contracts.links.length > 3" class="mt-8 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="text-sm text-slate-600">
+              Page {{ contracts.meta?.current_page || 1 }} of {{ contracts.meta?.last_page || 1 }} • 
+              Showing {{ contracts.meta?.from || 0 }} to {{ contracts.meta?.to || 0 }} of {{ contracts.meta?.total || 0 }} contracts
             </div>
-            
-            <div class="bg-white rounded-2xl border border-teal-200 p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300">
-              <div class="text-3xl font-bold text-teal-600 mb-3">{{ unsignedCount }}</div>
-              <div class="text-sm font-semibold text-teal-600 uppercase tracking-wide">Unsigned</div>
-              <div class="w-16 h-1 bg-teal-500 rounded-full mx-auto mt-4"></div>
-            </div>
-            
-            <div class="bg-white rounded-2xl border border-green-200 p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300">
-              <div class="text-3xl font-bold text-green-600 mb-3">{{ signedCount }}</div>
-              <div class="text-sm font-semibold text-green-600 uppercase tracking-wide">Signed</div>
-              <div class="w-16 h-1 bg-green-500 rounded-full mx-auto mt-4"></div>
-            </div>
-            
-            <div class="bg-white rounded-2xl border border-rose-200 p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300">
-              <div class="text-3xl font-bold text-rose-600 mb-3">{{ rejectedCount }}</div>
-              <div class="text-sm font-semibold text-rose-600 uppercase tracking-wide">Rejected</div>
-              <div class="w-16 h-1 bg-rose-500 rounded-full mx-auto mt-4"></div>
+            <div class="flex flex-wrap gap-2 justify-center">
+              <!-- First Page -->
+              <button 
+                v-if="contracts.meta?.current_page > 1"
+                @click="visitPage(contracts.links[0].url)"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <ChevronDoubleLeftIcon class="w-4 h-4" />
+                <span>First</span>
+              </button>
+
+              <!-- Previous Page -->
+              <button 
+                v-if="contracts.links[0].url"
+                @click="visitPage(contracts.links[0].url)"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <ChevronLeftIcon class="w-4 h-4" />
+                <span>Previous</span>
+              </button>
+
+              <!-- Page Numbers -->
+              <button 
+                v-for="link in contracts.links.slice(1, -1)"
+                :key="link.label"
+                :disabled="!link.url"
+                @click="visitPage(link.url)"
+                class="px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200 min-w-[3rem]"
+                :class="{
+                  'bg-gradient-to-r from-blue-500 to-teal-500 text-white border-transparent shadow-md': link.active,
+                  'text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-blue-300': !link.active && link.url,
+                  'text-slate-400 border-slate-200 cursor-not-allowed': !link.url
+                }"
+                v-html="link.label"
+              ></button>
+
+              <!-- Next Page -->
+              <button 
+                v-if="contracts.links[contracts.links.length - 1].url"
+                @click="visitPage(contracts.links[contracts.links.length - 1].url)"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <span>Next</span>
+                <ChevronRightIcon class="w-4 h-4" />
+              </button>
+
+              <!-- Last Page -->
+              <button 
+                v-if="contracts.meta?.current_page < contracts.meta?.last_page"
+                @click="visitPage(contracts.links[contracts.links.length - 1].url)"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <span>Last</span>
+                <ChevronDoubleRightIcon class="w-4 h-4" />
+              </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- Filter Buttons -->
-          <div class="flex flex-wrap gap-3 mb-6">
-            <button 
-              v-for="filter in statusFilters"
-              :key="filter.key"
-              @click="setStatusFilter(filter.key)"
-              class="px-4 py-2.5 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 shadow-sm"
-              :class="getFilterButtonClass(filter.key)"
-            >
-              <span class="flex items-center space-x-2">
-                <span>{{ filter.label }}</span>
-                <span class="text-xs bg-white/30 px-1.5 py-0.5 rounded-full">
-                  {{ getFilterCount(filter.key) }}
-                </span>
-              </span>
-            </button>
+    <!-- Reject Contract Modal -->
+    <div v-if="showRejectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-lg p-6 w-full max-w-md border border-slate-200 shadow-xl">
+        <div class="flex items-center space-x-3 mb-4">
+          <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+            <XMarkIcon class="w-5 h-5 text-red-600" />
           </div>
-
-          <!-- Empty State -->
-          <div v-if="!contracts.data || contracts.data.length === 0" class="bg-white rounded-2xl border-2 border-dashed border-blue-200 p-16 text-center">
-            <div class="w-24 h-24 bg-gradient-to-br from-blue-100 to-teal-100 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-              <DocumentTextIcon class="w-12 h-12 text-blue-500" />
-            </div>
-            <h3 class="text-2xl font-semibold text-slate-900 mb-3">No contracts found</h3>
-            <p class="text-slate-600 text-lg mb-8 max-w-md mx-auto">Create your first contract to get started with customer agreements.</p>
-            <a 
-              v-if="permissions.create"
-              href="/admin/contracts/create"
-              class="bg-gradient-to-r from-teal-600 to-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl inline-flex items-center space-x-2"
-            >
-              <PlusIcon class="w-5 h-5" />
-              <span>Create Your First Contract</span>
-            </a>
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Reject Contract</h3>
+            <p class="text-slate-600 text-sm">Please provide a reason for rejection</p>
           </div>
-
-          <!-- Table -->
-          <div v-else class="bg-white rounded-lg border border-blue-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-blue-200 bg-blue-50">
-              <h3 class="text-lg font-semibold text-slate-800">Contract List</h3>
-              <p class="text-sm text-slate-600 mt-1">
-                Showing {{ contracts.meta?.from || 0 }} to {{ contracts.meta?.to || 0 }} of {{ contracts.meta?.total || 0 }} results
-              </p>
-            </div>
-            
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-blue-50">
-                  <tr>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700 uppercase tracking-wider">Contract Details</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700 uppercase tracking-wider">Customer & Proposal</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700 uppercase tracking-wider">Value & Dates</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-blue-100">
-                  <tr 
-                    v-for="contract in filteredContracts" 
-                    :key="contract.id" 
-                    class="hover:bg-blue-50 transition-all duration-200"
-                  >
-                    <td class="px-6 py-4">
-                      <div class="flex items-center">
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-teal-500 rounded-xl flex items-center justify-center mr-4">
-                          <DocumentTextIcon class="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div class="font-semibold text-slate-900">{{ contract.contract_title }}</div>
-                          <div class="text-sm text-slate-500 mt-1">{{ formatDate(contract.created_at) }}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4">
-                      <div class="text-sm font-medium text-slate-900">{{ contract.customer?.name || 'No customer' }}</div>
-                      <div class="text-sm text-slate-500">Proposal: {{ contract.proposal?.title || 'N/A' }}</div>
-                    </td>
-                    <td class="px-6 py-4">
-                      <div class="text-sm font-medium text-slate-900">${{ contract.total_value }}</div>
-                      <div class="text-sm text-slate-500">{{ formatDate(contract.start_date) }} to {{ formatDate(contract.end_date) }}</div>
-                    </td>
-                    <td class="px-6 py-4">
-                      <span :class="getStatusBadgeClass(contract.status)" class="px-3 py-1.5 rounded-full text-xs font-semibold border">
-                        {{ formatStatus(contract.status) }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4">
-                      <div class="flex items-center space-x-2">
-                        <!-- View Button -->
-                        <a 
-                          :href="`/admin/contracts/${contract.id}`"
-                          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-                        >
-                          <EyeIcon class="w-4 h-4" />
-                          <span>View</span>
-                        </a>
-
-                        <!-- Edit Button -->
-                        <a 
-                          v-if="permissions.edit"
-                          :href="`/admin/contracts/${contract.id}/edit`"
-                          class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-                        >
-                          <PencilIcon class="w-4 h-4" />
-                          <span>Edit</span>
-                        </a>
-
-                        <!-- Approve Button -->
-                        <button 
-                          v-if="permissions.approve && contract.status === 'unsigned'"
-                          @click="approveContract(contract.id)"
-                          class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-                        >
-                          <CheckIcon class="w-4 h-4" />
-                          <span>Approve</span>
-                        </button>
-
-                        <!-- Reject Button -->
-                        <button 
-                          v-if="permissions.reject && contract.status === 'unsigned'"
-                          @click="rejectContract(contract.id)"
-                          class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-                        >
-                          <XMarkIcon class="w-4 h-4" />
-                          <span>Reject</span>
-                        </button>
-
-                        <!-- Delete Button -->
-                        <button 
-                          v-if="permissions.delete"
-                          @click="deleteContract(contract.id)"
-                          class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-                        >
-                          <TrashIcon class="w-4 h-4" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Pagination -->
-            <div v-if="contracts.links && contracts.links.length > 3" class="px-6 py-4 bg-white border-t border-blue-200 flex justify-between items-center">
-              <div class="text-sm text-slate-700">
-                Page {{ contracts.meta?.current_page || 1 }} of {{ contracts.meta?.last_page || 1 }}
-              </div>
-              <div class="flex space-x-2">
-                <button 
-                  v-for="link in contracts.links"
-                  :key="link.label"
-                  :disabled="!link.url"
-                  @click="visitPage(link.url)"
-                  class="px-3 py-1.5 text-sm border rounded-lg transition-all duration-200"
-                  :class="{
-                    'bg-gradient-to-r from-blue-600 to-teal-600 text-white border-transparent shadow-lg': link.active,
-                    'text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400': !link.active && link.url,
-                    'text-slate-400 border-slate-200 cursor-not-allowed': !link.url
-                  }"
-                  v-html="link.label"
-                ></button>
-              </div>
-            </div>
-          </div>
+        </div>
+        
+        <textarea 
+          v-model="rejectReason"
+          placeholder="Enter reason for rejecting this contract..."
+          class="w-full h-32 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm resize-none"
+        ></textarea>
+        
+        <div class="flex justify-end space-x-3 mt-6">
+          <button 
+            @click="closeRejectModal" 
+            class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium text-sm transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="confirmReject"
+            :disabled="!rejectReason.trim()"
+            class="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 text-sm shadow hover:shadow-lg disabled:cursor-not-allowed"
+          >
+            Confirm Reject
+          </button>
         </div>
       </div>
     </div>
@@ -222,100 +304,61 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { ref } from 'vue'
+import { router, useForm } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import {
-  EyeIcon,
+  PlusIcon,
   PencilIcon,
   TrashIcon,
+  DocumentTextIcon,
+  EyeIcon,
   CheckIcon,
   XMarkIcon,
-  DocumentTextIcon,
-  PlusIcon
+  UserIcon,
+  CalendarIcon,
+  DocumentIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
-  contracts: Object,
-  permissions: Object,
-  tables: Array
-})
-
-const statusFilter = ref('all')
-
-// Status filters
-const statusFilters = [
-  { key: 'all', label: 'All' },
-  { key: 'unsigned', label: 'Unsigned' },
-  { key: 'signed', label: 'Signed' },
-  { key: 'rejected', label: 'Rejected' }
-]
-
-// Computed properties
-const totalContracts = computed(() => {
-  return props.contracts.data?.length || 0
-})
-
-const unsignedCount = computed(() => {
-  return props.contracts.data?.filter(c => c.status === 'unsigned').length || 0
-})
-
-const signedCount = computed(() => {
-  return props.contracts.data?.filter(c => c.status === 'signed').length || 0
-})
-
-const rejectedCount = computed(() => {
-  return props.contracts.data?.filter(c => c.status === 'rejected').length || 0
-})
-
-const filteredContracts = computed(() => {
-  if (!props.contracts.data) return []
-  
-  if (statusFilter.value === 'all') {
-    return props.contracts.data
+  contracts: {
+    type: Object,
+    default: () => ({ data: [] })
+  },
+  permissions: {
+    type: Object,
+    default: () => ({})
+  },
+  tables: {
+    type: Array,
+    default: () => []
   }
-  
-  return props.contracts.data.filter(contract => contract.status === statusFilter.value)
 })
 
-// Helper methods
-function getStatusBadgeClass(status) {
-  const classes = {
-    unsigned: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    signed: 'bg-green-100 text-green-800 border-green-200',
-    rejected: 'bg-rose-100 text-rose-800 border-rose-200'
-  }
-  return classes[status] || 'bg-slate-100 text-slate-800 border-slate-200'
+const loading = ref(false)
+const showRejectModal = ref(false)
+const rejectReason = ref('')
+const selectedContractId = ref(null)
+
+const getFileName = (filePath) => {
+  return filePath ? filePath.split('/').pop() : ''
 }
 
-function getFilterButtonClass(filterKey) {
-  const baseClasses = 'px-4 py-2.5 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 shadow-sm'
-  
-  if (filterKey === statusFilter.value) {
-    return `${baseClasses} bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg scale-105`
-  }
-  
-  return `${baseClasses} text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400`
-}
-
-function getFilterCount(filterKey) {
-  if (filterKey === 'all') return totalContracts.value
-  if (filterKey === 'unsigned') return unsignedCount.value
-  if (filterKey === 'signed') return signedCount.value
-  if (filterKey === 'rejected') return rejectedCount.value
-  return 0
-}
-
-function formatStatus(status) {
+const formatStatus = (status) => {
   const statusMap = {
-    unsigned: 'Unsigned',
-    signed: 'Signed',
+    draft: 'Draft',
+    first_contract_sent: 'First Contract Sent',
+    accepted: 'Accepted',
     rejected: 'Rejected'
   }
   return statusMap[status] || status
 }
 
-function formatDate(dateString) {
+const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -324,44 +367,99 @@ function formatDate(dateString) {
   })
 }
 
-// Navigation methods
+const visitCreate = () => {
+  router.get('/admin/contracts/create')
+}
+
+const viewContract = (contractId) => {
+  router.get(`/admin/contracts/${contractId}`)
+}
+
+const visitEdit = (id) => {
+  router.get(`/admin/contracts/${id}/edit`)
+}
+
 const visitPage = (url) => {
   if (url) {
     router.get(url)
   }
 }
 
-const setStatusFilter = (filter) => {
-  statusFilter.value = filter
+const downloadFile = (id) => {
+  window.location.href = `/admin/contracts/${id}/download`
+}
+
+const deleteContract = (id) => {
+  if (confirm('Are you sure you want to delete this contract?')) {
+    router.delete(`/admin/contracts/${id}`, {
+      preserveScroll: true,
+      onSuccess: () => {
+        router.reload({ only: ['contracts'] })
+      }
+    })
+  }
 }
 
 const approveContract = (id) => {
-  if (confirm('Are you sure you want to approve this contract? It will be marked as signed.')) {
-    router.post(`/admin/contracts/${id}/approve`, {}, {
+  if (confirm('Are you sure you want to approve this contract? This will mark it as accepted.')) {
+    router.post(`/admin/contracts/${id}/accept`, {}, {
+      preserveScroll: true,
       onSuccess: () => {
-        // Success handled by controller
+        router.reload({ only: ['contracts'] })
+      },
+      onError: () => {
+        alert('Failed to approve contract. Please try again.')
       }
     })
   }
 }
 
 const rejectContract = (id) => {
-  if (confirm('Are you sure you want to reject this contract?')) {
-    router.post(`/admin/contracts/${id}/reject`, {}, {
-      onSuccess: () => {
-        // Success handled by controller
-      }
-    })
-  }
+  selectedContractId.value = id
+  showRejectModal.value = true
 }
 
-const deleteContract = (id) => {
-  if (confirm('Are you sure you want to delete this contract? This action cannot be undone.')) {
-    router.delete(`/admin/contracts/${id}`, {
-      onSuccess: () => {
-        // Success handled by controller
-      }
-    })
+const closeRejectModal = () => {
+  showRejectModal.value = false
+  rejectReason.value = ''
+  selectedContractId.value = null
+}
+
+const confirmReject = () => {
+  if (!rejectReason.value.trim()) {
+    alert('Please enter a reason for rejection')
+    return
   }
+
+  if (!selectedContractId.value) return
+
+  router.post(`/admin/contracts/${selectedContractId.value}/reject`, {
+    reason: rejectReason.value
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      closeRejectModal()
+      router.reload({ only: ['contracts'] })
+    },
+    onError: () => {
+      alert('Failed to reject contract. Please try again.')
+    }
+  })
 }
 </script>
+
+<style scoped>
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>

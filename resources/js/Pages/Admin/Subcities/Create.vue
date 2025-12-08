@@ -1,0 +1,137 @@
+<template>
+  <div class="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 flex">
+    <Sidebar :tables="tables" />
+    
+    <div class="flex-1">
+      <div class="min-h-screen">
+        <!-- Header -->
+        <div class="bg-white/80 backdrop-blur-lg border-b border-teal-100/50 px-6 py-6 shadow-sm">
+          <div class="max-w-7xl mx-auto">
+            <div class="flex justify-between items-center">
+              <div>
+                <h1 class="text-3xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">Add New Subcity</h1>
+                <p class="text-slate-600 mt-2">Create a new subcity under a parent city</p>
+              </div>
+              <button 
+                @click="$inertia.visit('/admin/subcities')"
+                class="bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+              >
+                <ArrowLeftIcon class="w-5 h-5" />
+                <span>Back to Subcities</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6">
+          <div class="max-w-2xl mx-auto">
+            <!-- Success/Error Messages -->
+            <div v-if="$page.props.flash && $page.props.flash.success" class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-700 px-6 py-4 rounded-xl mb-6 shadow-sm">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                  <CheckCircleIcon class="w-4 h-4 text-green-600" />
+                </div>
+                {{ $page.props.flash.success }}
+              </div>
+            </div>
+
+            <!-- Create Form -->
+            <div class="bg-white rounded-2xl shadow-lg border border-teal-100 p-8">
+              <form @submit.prevent="submit">
+                <div class="space-y-6">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Subcity Name *</label>
+                    <input
+                      type="text"
+                      v-model="form.name"
+                      required
+                      class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-lg"
+                      placeholder="Enter subcity name"
+                      :class="{ 'border-red-300': form.errors.name }"
+                    />
+                    <p v-if="form.errors.name" class="mt-1 text-sm text-red-600">{{ form.errors.name }}</p>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Parent City *</label>
+                    <select
+                      v-model="form.city_id"
+                      required
+                      class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-lg"
+                      :class="{ 'border-red-300': form.errors.city_id }"
+                    >
+                      <option value="">Select a city</option>
+                      <option v-for="city in cities" :key="city.id" :value="city.id">
+                        {{ city.name }}
+                      </option>
+                    </select>
+                    <p v-if="form.errors.city_id" class="mt-1 text-sm text-red-600">{{ form.errors.city_id }}</p>
+                  </div>
+
+                  <div class="flex justify-end space-x-4 pt-6 border-t border-slate-200">
+                    <button 
+                      type="button"
+                      @click="$inertia.visit('/admin/subcities')"
+                      class="px-6 py-3 text-slate-600 hover:text-slate-800 font-medium text-sm transition-colors border border-slate-300 rounded-lg hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      :disabled="form.processing"
+                      class="bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 disabled:from-teal-400 disabled:to-blue-400 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 text-sm shadow hover:shadow-lg disabled:cursor-not-allowed flex items-center space-x-2"
+                    >
+                      <PlusIcon class="w-5 h-5" />
+                      <span v-if="form.processing">Creating...</span>
+                      <span v-else>Create Subcity</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { useForm } from '@inertiajs/vue3'
+import Sidebar from '@/Pages/Admin/Sidebar.vue'
+import {
+  PlusIcon,
+  ArrowLeftIcon,
+  CheckCircleIcon
+} from '@heroicons/vue/24/outline'
+
+const props = defineProps({
+  cities: {
+    type: Array,
+    default: () => []
+  },
+  tables: {
+    type: Array,
+    default: () => []
+  },
+  flash: {
+    type: Object,
+    default: () => ({})
+  }
+})
+
+const form = useForm({
+  name: '',
+  city_id: ''
+})
+
+const submit = () => {
+  form.post('/admin/subcities', {
+    preserveScroll: true,
+    onSuccess: () => {
+      form.reset()
+    }
+  })
+}
+</script>

@@ -28,6 +28,13 @@
           </button>
         </div>
 
+        <!-- Results Count -->
+        <div v-if="proposals.data && proposals.data.length > 0" class="mb-4">
+          <p class="text-sm text-slate-600">
+            Showing {{ proposals.meta?.from || 0 }} to {{ proposals.meta?.to || 0 }} of {{ proposals.meta?.total || 0 }} proposals
+          </p>
+        </div>
+
         <div v-if="proposals.data && proposals.data.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <div
             v-for="proposal in proposals.data"
@@ -60,7 +67,7 @@
                   }`">
                     {{ proposal.is_rejected ? 'Rejected' : proposal.status }}
                   </span>
-                  <span class="text-lg font-bold text-slate-800 mt-1">{{ proposal.price }}</span>
+                  <span class="text-lg font-bold text-slate-800 mt-1">${{ proposal.price }}</span>
                 </div>
               </div>
 
@@ -109,10 +116,10 @@
               <div class="flex flex-col gap-2 pt-4 border-t border-slate-200">
                 <div class="flex gap-2">
                   <button 
-                    @click="visitShow(proposal.id)"
-                    class="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 text-sm font-semibold"
+                    @click.prevent="viewProposal(proposal.id)"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-all duration-200 flex items-center space-x-1"
                   >
-                    <EyeIcon class="w-4 h-4" />
+                    <EyeIcon class="w-3 h-3" />
                     <span>View</span>
                   </button>
                   
@@ -123,26 +130,6 @@
                   >
                     <PencilIcon class="w-4 h-4" />
                     <span>Edit</span>
-                  </button>
-                </div>
-
-                <div class="flex gap-2" v-if="proposal.status === 'unsigned' && !proposal.is_rejected">
-                  <button 
-                    v-if="permissions.approve"
-                    @click="approveProposal(proposal.id)"
-                    class="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-all duration-200 text-sm font-semibold"
-                  >
-                    <CheckIcon class="w-4 h-4" />
-                    <span>Approve</span>
-                  </button>
-                  
-                  <button 
-                    v-if="permissions.reject"
-                    @click="rejectProposal(proposal.id)"
-                    class="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all duration-200 text-sm font-semibold"
-                  >
-                    <XMarkIcon class="w-4 h-4" />
-                    <span>Reject</span>
                   </button>
                 </div>
 
@@ -175,18 +162,41 @@
           </button>
         </div>
 
-        <div v-if="proposals.links && proposals.links.length > 3" class="mt-6 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <div class="flex justify-between items-center">
+        <!-- Enhanced Pagination -->
+        <div v-if="proposals.links && proposals.links.length > 3" class="mt-8 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="text-sm text-slate-600">
+              Page {{ proposals.meta?.current_page || 1 }} of {{ proposals.meta?.last_page || 1 }} • 
               Showing {{ proposals.meta?.from || 0 }} to {{ proposals.meta?.to || 0 }} of {{ proposals.meta?.total || 0 }} proposals
             </div>
-            <div class="flex space-x-2">
+            <div class="flex flex-wrap gap-2 justify-center">
+              <!-- First Page -->
               <button 
-                v-for="link in proposals.links"
+                v-if="proposals.meta?.current_page > 1"
+                @click="visitPage(proposals.links[0].url)"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <ChevronDoubleLeftIcon class="w-4 h-4" />
+                <span>First</span>
+              </button>
+
+              <!-- Previous Page -->
+              <button 
+                v-if="proposals.links[0].url"
+                @click="visitPage(proposals.links[0].url)"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <ChevronLeftIcon class="w-4 h-4" />
+                <span>Previous</span>
+              </button>
+
+              <!-- Page Numbers -->
+              <button 
+                v-for="link in proposals.links.slice(1, -1)"
                 :key="link.label"
                 :disabled="!link.url"
                 @click="visitPage(link.url)"
-                class="px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200"
+                class="px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200 min-w-[3rem]"
                 :class="{
                   'bg-gradient-to-r from-blue-500 to-teal-500 text-white border-transparent shadow-md': link.active,
                   'text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-blue-300': !link.active && link.url,
@@ -194,6 +204,26 @@
                 }"
                 v-html="link.label"
               ></button>
+
+              <!-- Next Page -->
+              <button 
+                v-if="proposals.links[proposals.links.length - 1].url"
+                @click="visitPage(proposals.links[proposals.links.length - 1].url)"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <span>Next</span>
+                <ChevronRightIcon class="w-4 h-4" />
+              </button>
+
+              <!-- Last Page -->
+              <button 
+                v-if="proposals.meta?.current_page < proposals.meta?.last_page"
+                @click="visitPage(proposals.links[proposals.links.length - 1].url)"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <span>Last</span>
+                <ChevronDoubleRightIcon class="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -212,11 +242,13 @@ import {
   TrashIcon,
   DocumentTextIcon,
   EyeIcon,
-  CheckIcon,
-  XMarkIcon,
   UserIcon,
   BuildingOfficeIcon,
-  DocumentIcon
+  DocumentIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -244,8 +276,8 @@ const visitCreate = () => {
   router.get('/admin/proposals/create')
 }
 
-const visitShow = (id) => {
-  router.get(`/admin/proposals/${id}`)
+const viewProposal = (proposalId) => {
+  window.location.href = `/admin/proposals/${proposalId}`
 }
 
 const visitEdit = (id) => {
@@ -259,40 +291,16 @@ const visitPage = (url) => {
 }
 
 const downloadFile = (id) => {
-  window.open(`/admin/proposals/${id}/download`, '_blank')
+  window.location.href = `/admin/proposals/${id}/download`
 }
 
 const deleteProposal = (id) => {
   if (confirm('Are you sure you want to delete this proposal?')) {
     loading.value = true
     router.delete(`/admin/proposals/${id}`, {
-      onFinish: () => {
-        loading.value = false
-      }
-    })
-  }
-}
-
-const approveProposal = (id) => {
-  if (confirm('Are you sure you want to approve this proposal? This will mark it as signed.')) {
-    loading.value = true
-    router.post(`/admin/proposals/${id}/approve`, {
+      preserveScroll: true,
       onSuccess: () => {
-        router.reload()
-      },
-      onFinish: () => {
-        loading.value = false
-      }
-    })
-  }
-}
-
-const rejectProposal = (id) => {
-  if (confirm('Are you sure you want to reject this proposal?')) {
-    loading.value = true
-    router.post(`/admin/proposals/${id}/reject`, {
-      onSuccess: () => {
-        router.reload()
+        router.reload({ only: ['proposals'] })
       },
       onFinish: () => {
         loading.value = false

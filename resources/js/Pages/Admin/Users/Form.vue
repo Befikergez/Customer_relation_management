@@ -189,6 +189,42 @@
             {{ form.errors.roles }}
           </p>
         </div>
+
+        <!-- Commission Rate Section (Dynamic) -->
+        <div v-if="showCommissionSection" class="space-y-6">
+          <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+            <div class="w-2 h-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full mr-3"></div>
+            Commission Settings
+          </h3>
+          
+          <div class="max-w-md">
+            <label class="block text-sm font-semibold text-gray-700 mb-3">Commission Rate (%)</label>
+            <div class="relative">
+              <input
+                v-model="form.commission_rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="Enter commission rate"
+                class="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white/50 backdrop-blur-sm pr-12"
+                :class="{ 'border-red-400 focus:ring-red-500 focus:border-red-500': form.errors.commission_rate }"
+              />
+              <div class="absolute inset-y-0 right-0 flex items-center pr-4">
+                <span class="text-gray-500 font-medium">%</span>
+              </div>
+            </div>
+            <p v-if="form.errors.commission_rate" class="mt-2 text-sm text-red-600 flex items-center">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              {{ form.errors.commission_rate }}
+            </p>
+            <p class="text-gray-600 text-sm mt-2">
+              Commission rate for sales-related roles. Only applicable to users with commission-enabled roles.
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Form Actions -->
@@ -226,7 +262,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 
 const props = defineProps({
@@ -240,6 +276,9 @@ const emit = defineEmits(['saved', 'cancelled'])
 const isEdit = computed(() => !!props.user)
 const imagePreview = ref(null)
 
+// Commission-enabled roles (this should come from the backend in a real app)
+const commissionEnabledRoles = ['salesperson', 'sales-manager']
+
 // Initialize form with proper data
 const form = useForm({
   name: props.user?.name || '',
@@ -247,9 +286,24 @@ const form = useForm({
   password: '',
   password_confirmation: '',
   roles: props.userRoles?.map(role => role.name) || [],
+  commission_rate: props.user?.commission_rate || null,
   profile_image: null,
   _method: isEdit.value ? 'PUT' : 'POST',
 })
+
+// Compute whether to show commission section
+const showCommissionSection = computed(() => {
+  return form.roles.some(role => commissionEnabledRoles.includes(role))
+})
+
+// Watch for role changes to handle commission rate
+watch(() => form.roles, (newRoles) => {
+  // If user removes all commission-enabled roles, clear commission rate
+  const hasCommissionRole = newRoles.some(role => commissionEnabledRoles.includes(role))
+  if (!hasCommissionRole) {
+    form.commission_rate = null
+  }
+}, { deep: true })
 
 // Set initial image preview for edit
 if (isEdit.value && props.user?.profile_image_url) {

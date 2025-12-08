@@ -43,10 +43,13 @@
               <p class="text-gray-800 font-semibold mt-1">{{ userRoles.length }}</p>
             </div>
             <div class="bg-white rounded-xl p-4 border border-green-200/50 shadow-sm backdrop-blur-sm">
-              <p class="text-sm text-gray-600 font-medium">Status</p>
+              <p class="text-sm text-gray-600 font-medium">Commission</p>
               <div class="flex items-center mt-1">
-                <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span class="text-gray-700 font-semibold">Active</span>
+                <div v-if="user.commission_rate !== null" class="w-2 h-2 bg-amber-500 rounded-full mr-2"></div>
+                <div v-else class="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                <span class="text-gray-700 font-semibold">
+                  {{ user.commission_rate !== null ? user.commission_rate + '%' : 'Not set' }}
+                </span>
               </div>
             </div>
           </div>
@@ -103,6 +106,14 @@
                         {{ role.name }}
                       </span>
                       <span v-if="userRoles.length === 0" class="text-gray-500 text-sm italic">No roles assigned</span>
+                    </div>
+                  </div>
+
+                  <!-- Commission Display -->
+                  <div v-if="user.commission_rate !== null">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Commission Rate</h4>
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                      <span class="text-amber-700 font-bold">{{ user.commission_rate }}%</span>
                     </div>
                   </div>
                 </div>

@@ -105,6 +105,34 @@
                     </div>
                   </div>
 
+                  <!-- Location Information -->
+                  <div class="space-y-6">
+                    <h3 class="text-xl font-semibold text-slate-800 border-b border-slate-200 pb-3 flex items-center">
+                      <MapPinIcon class="w-6 h-6 text-green-600 mr-2" />
+                      Location Details
+                    </h3>
+                    
+                    <div class="space-y-4">
+                      <div>
+                        <p class="text-sm text-slate-600 font-medium mb-2">City</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ rejected.city?.name || 'Not specified' }}</p>
+                      </div>
+
+                      <div>
+                        <p class="text-sm text-slate-600 font-medium mb-2">Subcity</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ rejected.subcity?.name || 'Not specified' }}</p>
+                      </div>
+
+                      <div>
+                        <p class="text-sm text-slate-600 font-medium mb-2">Full Address</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ rejected.location || 'Not provided' }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Second Row Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
                   <!-- Rejection Information -->
                   <div class="space-y-6">
                     <h3 class="text-xl font-semibold text-slate-800 border-b border-slate-200 pb-3 flex items-center">
@@ -136,6 +164,29 @@
                       </div>
                     </div>
                   </div>
+
+                  <!-- Additional Information -->
+                  <div class="space-y-6">
+                    <h3 class="text-xl font-semibold text-slate-800 border-b border-slate-200 pb-3 flex items-center">
+                      <InformationCircleIcon class="w-6 h-6 text-slate-600 mr-2" />
+                      Additional Information
+                    </h3>
+                    
+                    <div class="space-y-4">
+                      <div>
+                        <p class="text-sm text-slate-600 font-medium mb-2">Record ID</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ rejected.id }}</p>
+                      </div>
+                      <div>
+                        <p class="text-sm text-slate-600 font-medium mb-2">Last Updated</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ formatDate(rejected.updated_at) }}</p>
+                      </div>
+                      <div>
+                        <p class="text-sm text-slate-600 font-medium mb-2">Original ID</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ rejected.original_id || 'N/A' }}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Rejection Reason -->
@@ -157,24 +208,6 @@
                   </h3>
                   <div class="bg-blue-50 rounded-xl p-6 border-l-4 border-blue-500">
                     <p class="text-blue-900 text-lg leading-relaxed">{{ rejected.remarks }}</p>
-                  </div>
-                </div>
-
-                <!-- Additional Information -->
-                <div class="mt-6 pt-6 border-t border-slate-200">
-                  <h3 class="text-xl font-semibold text-slate-800 mb-4 flex items-center">
-                    <InformationCircleIcon class="w-6 h-6 text-slate-600 mr-2" />
-                    Additional Information
-                  </h3>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p class="text-sm text-slate-600 font-medium mb-2">Record ID</p>
-                      <p class="text-lg font-semibold text-slate-900">{{ rejected.id }}</p>
-                    </div>
-                    <div>
-                      <p class="text-sm text-slate-600 font-medium mb-2">Last Updated</p>
-                      <p class="text-lg font-semibold text-slate-900">{{ formatDate(rejected.updated_at) }}</p>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -235,6 +268,14 @@ const props = defineProps({
     default: () => ({})
   },
   tables: {
+    type: Array,
+    default: () => []
+  },
+  cities: {
+    type: Array,
+    default: () => []
+  },
+  subcities: {
     type: Array,
     default: () => []
   }

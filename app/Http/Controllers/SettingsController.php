@@ -8,6 +8,8 @@ use App\Models\Role;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Industry;
+use App\Models\City;
+use App\Models\Subcity;
 use App\Services\NavigationService;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Schema;
@@ -25,10 +27,14 @@ class SettingsController extends Controller
             'products_count' => Product::count(),
             'categories_count' => ProductCategory::count(),
             'industries_count' => Industry::count(),
+            'cities_count' => $this->getCitiesCount(),
+            'subcities_count' => $this->getSubcitiesCount(),
             'active_users_count' => $this->getActiveUsersCount(),
             'active_products_count' => $this->getActiveProductsCount(),
             'active_categories_count' => $this->getActiveCategoriesCount(),
             'active_industries_count' => $this->getActiveIndustriesCount(),
+            'active_cities_count' => $this->getCitiesCount(),
+            'active_subcities_count' => $this->getSubcitiesCount(),
             'tables' => $this->getFilteredTablesForUser($user),
             // Add data for all sections
             'users_data' => $this->getUsersData(),
@@ -36,11 +42,14 @@ class SettingsController extends Controller
             'products_data' => $this->getProductsData(),
             'categories_data' => $this->getCategoriesData(),
             'industries_data' => $this->getIndustriesData(),
+            'cities_data' => $this->getCitiesData(),
+            'subcities_data' => $this->getSubcitiesData(),
             // Additional data for forms
             'all_roles' => $this->getAllRoles(),
             'all_permissions' => $this->getAllPermissions(),
             'all_categories' => $this->getAllCategories(),
             'all_industries' => $this->getAllIndustries(),
+            'all_cities' => $this->getAllCities(),
         ];
 
         return Inertia::render('Admin/Settings', $data);
@@ -58,7 +67,7 @@ class SettingsController extends Controller
                 return [];
             }
             
-            $settingsTables = ['Users', 'Roles', 'Products', 'Product Categories', 'Industries'];
+            $settingsTables = ['Users', 'Roles', 'Products', 'Product Categories', 'Industries', 'Cities', 'Subcities'];
             
             $filteredTables = array_filter($allTables, function($table) use ($settingsTables) {
                 return is_array($table) && 
@@ -86,6 +95,38 @@ class SettingsController extends Controller
             return 0;
         } catch (\Exception $e) {
             Log::error('Error getting roles count: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get cities count
+     */
+    protected function getCitiesCount()
+    {
+        try {
+            if (class_exists('App\Models\City') && Schema::hasTable('cities')) {
+                return \App\Models\City::count();
+            }
+            return 0;
+        } catch (\Exception $e) {
+            Log::error('Error getting cities count: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get subcities count
+     */
+    protected function getSubcitiesCount()
+    {
+        try {
+            if (class_exists('App\Models\Subcity') && Schema::hasTable('subcities')) {
+                return \App\Models\Subcity::count();
+            }
+            return 0;
+        } catch (\Exception $e) {
+            Log::error('Error getting subcities count: ' . $e->getMessage());
             return 0;
         }
     }
@@ -158,7 +199,7 @@ class SettingsController extends Controller
         try {
             return User::with(['roles'])
                 ->latest()
-                ->limit(12) // Increased from 6 to show more users
+                ->limit(12)
                 ->get()
                 ->map(function($user) {
                     return [
@@ -169,6 +210,7 @@ class SettingsController extends Controller
                         'roles' => $user->roles,
                         'profile_image_url' => $user->profile_image ? asset('storage/' . $user->profile_image) : null,
                         'profile_image' => $user->profile_image,
+                        'commission_rate' => $user->commission_rate, // ADD THIS LINE
                         'created_at' => $user->created_at,
                     ];
                 });
@@ -212,7 +254,7 @@ class SettingsController extends Controller
         try {
             return Product::with(['category', 'industry', 'creator'])
                 ->latest()
-                ->limit(12) // Increased from 6 to show more products
+                ->limit(12)
                 ->get()
                 ->map(function($product) {
                     return [
@@ -274,6 +316,61 @@ class SettingsController extends Controller
                 });
         } catch (\Exception $e) {
             Log::error('Error getting industries data: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get cities data
+     */
+    protected function getCitiesData()
+    {
+        try {
+            if (class_exists('App\Models\City') && Schema::hasTable('cities')) {
+                return \App\Models\City::with(['subcities'])
+                    ->latest()
+                    ->get()
+                    ->map(function($city) {
+                        return [
+                            'id' => $city->id,
+                            'name' => $city->name,
+                            'description' => $city->description,
+                            'subcities' => $city->subcities,
+                            'created_at' => $city->created_at,
+                        ];
+                    });
+            }
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Error getting cities data: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get subcities data
+     */
+    protected function getSubcitiesData()
+    {
+        try {
+            if (class_exists('App\Models\Subcity') && Schema::hasTable('subcities')) {
+                return \App\Models\Subcity::with(['city'])
+                    ->latest()
+                    ->get()
+                    ->map(function($subcity) {
+                        return [
+                            'id' => $subcity->id,
+                            'name' => $subcity->name,
+                            'description' => $subcity->description,
+                            'city_id' => $subcity->city_id,
+                            'city' => $subcity->city,
+                            'created_at' => $subcity->created_at,
+                        ];
+                    });
+            }
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Error getting subcities data: ' . $e->getMessage());
             return [];
         }
     }
@@ -362,6 +459,28 @@ class SettingsController extends Controller
     }
 
     /**
+     * Get all cities for subcity forms
+     */
+    protected function getAllCities()
+    {
+        try {
+            if (class_exists('App\Models\City') && Schema::hasTable('cities')) {
+                return \App\Models\City::all()
+                    ->map(function($city) {
+                        return [
+                            'id' => $city->id,
+                            'name' => $city->name,
+                        ];
+                    });
+            }
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Error getting all cities: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Handle AJAX requests for specific data (optional - for better performance)
      */
     public function getData($type)
@@ -396,6 +515,18 @@ class SettingsController extends Controller
                     return response()->json([
                         'industries_data' => $this->getIndustriesData(),
                         'industries_count' => Industry::count(),
+                    ]);
+                
+                case 'cities':
+                    return response()->json([
+                        'cities_data' => $this->getCitiesData(),
+                        'cities_count' => $this->getCitiesCount(),
+                    ]);
+                
+                case 'subcities':
+                    return response()->json([
+                        'subcities_data' => $this->getSubcitiesData(),
+                        'subcities_count' => $this->getSubcitiesCount(),
                     ]);
                 
                 default:

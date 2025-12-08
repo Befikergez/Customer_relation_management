@@ -2,91 +2,102 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Contract extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'proposal_id',
         'customer_id',
+        'proposal_id',
         'contract_title',
         'contract_description',
         'total_value',
         'start_date',
         'end_date',
         'payment_terms',
-        'file',
         'status',
-        'customer_signed_at',
+        'file',
         'customer_rejected_at',
-    ];
-
-    protected $attributes = [
-        'status' => 'unsigned',
+        'customer_signed_at',
+        'created_by'
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'total_value' => 'decimal:2',
-        'customer_signed_at' => 'datetime',
         'customer_rejected_at' => 'datetime',
+        'customer_signed_at' => 'datetime',
     ];
 
-    public function proposal() {
+    /**
+     * Get the customer that owns the contract.
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Get the proposal that this contract was created from.
+     */
+    public function proposal(): BelongsTo
+    {
         return $this->belongsTo(Proposal::class);
     }
 
-    public function customer() {
-        return $this->belongsTo(User::class, 'customer_id');
+    /**
+     * Get the user who created the contract.
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
-    // Status scopes
-    public function scopeUnsigned($query) {
-        return $query->where('status', 'unsigned');
-    }
-
-    public function scopeSigned($query) {
+    /**
+     * Scope a query to only include signed contracts.
+     */
+    public function scopeSigned($query)
+    {
         return $query->where('status', 'signed');
     }
 
-    public function scopeRejected($query) {
-        return $query->where('status', 'rejected');
+    /**
+     * Scope a query to only include unsigned contracts.
+     */
+    public function scopeUnsigned($query)
+    {
+        return $query->where('status', 'unsigned');
     }
 
-    // Status check methods
-    public function isUnsigned() {
-        return $this->status === 'unsigned';
+    /**
+     * Scope a query to only include draft contracts.
+     */
+    public function scopeDraft($query)
+    {
+        return $query->where('status', 'draft');
     }
 
-    public function isSigned() {
-        return $this->status === 'signed';
+    /**
+     * Check if contract is expired.
+     */
+    public function getIsExpiredAttribute(): bool
+    {
+        return $this->end_date && $this->end_date->isPast();
     }
 
-    public function isRejected() {
-        return $this->status === 'rejected';
-    }
-
-    // Status badge class for UI
-    public function getStatusBadgeClass() {
-        $classes = [
-            'unsigned' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
-            'signed' => 'bg-green-100 text-green-800 border-green-200',
-            'rejected' => 'bg-red-100 text-red-800 border-red-200',
-        ];
-        return $classes[$this->status] ?? 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-
-    // Format status for display
-    public function getFormattedStatus() {
-        $statusMap = [
-            'unsigned' => 'Unsigned',
-            'signed' => 'Signed',
-            'rejected' => 'Rejected',
-        ];
-        return $statusMap[$this->status] ?? $this->status;
+    /**
+     * Check if contract is active.
+     */
+    public function getIsActiveAttribute(): bool
+    {
+        return $this->status === 'signed' && 
+               $this->start_date && 
+               $this->start_date->isPast() && 
+               !$this->is_expired;
     }
 }

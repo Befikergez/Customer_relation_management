@@ -178,6 +178,63 @@
         </p>
       </div>
 
+      <!-- Commission Rate Section (Only show when salesperson role is selected) -->
+      <div v-if="hasSalespersonRole" class="space-y-6">
+        <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+          <div class="w-2 h-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full mr-3"></div>
+          Commission Settings
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-3">
+              Commission Rate (%)
+              <span class="text-red-500 ml-1">*</span>
+            </label>
+            <div class="relative">
+              <input
+                v-model="form.commission_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                placeholder="0.00"
+                required
+                class="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white/50 backdrop-blur-sm pr-12"
+                :class="{ 'border-red-400 focus:ring-red-500 focus:border-red-500': form.errors.commission_rate }"
+              />
+              <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                <span class="text-gray-500 font-semibold">%</span>
+              </div>
+            </div>
+            <p v-if="form.errors.commission_rate" class="mt-2 text-sm text-red-600 flex items-center">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              {{ form.errors.commission_rate }}
+            </p>
+            <p class="text-gray-600 text-sm mt-2">
+              Set the commission percentage for this salesperson (0-100%)
+            </p>
+          </div>
+          
+          <!-- Commission Preview -->
+          <div class="flex items-center justify-center">
+            <div class="bg-gradient-to-br from-orange-50 to-amber-50 border border-amber-200 rounded-2xl p-6 text-center w-full">
+              <div class="text-amber-600 font-bold text-3xl mb-2">
+                {{ form.commission_rate || 0 }}%
+              </div>
+              <div class="text-amber-700 text-sm font-medium">
+                Commission Rate
+              </div>
+              <div class="text-amber-600 text-xs mt-2">
+                Applied to all sales
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Form Actions -->
       <div class="bg-gradient-to-r from-gray-50 via-blue-50/50 to-teal-50/50 backdrop-blur-sm px-8 py-6 border-t border-gray-200/50 -mx-8 -mb-8">
         <div class="flex justify-end space-x-4">
@@ -190,7 +247,7 @@
           </button>
           <button
             type="submit"
-            :disabled="form.processing"
+            :disabled="form.processing || (hasSalespersonRole && !form.commission_rate)"
             class="group relative bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3.5 rounded-xl hover:shadow-lg transition-all duration-300 shadow-md flex items-center font-semibold disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden border border-blue-500/20"
           >
             <div class="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -213,7 +270,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 
 const props = defineProps({
@@ -227,6 +284,11 @@ const emit = defineEmits(['saved', 'cancelled'])
 const isEdit = computed(() => !!props.user)
 const imagePreview = ref(null)
 
+// Check if salesperson role is selected
+const hasSalespersonRole = computed(() => {
+  return form.roles.includes('salesperson')
+})
+
 // Initialize form with proper data
 const form = useForm({
   name: props.user?.name || '',
@@ -235,7 +297,16 @@ const form = useForm({
   password_confirmation: '',
   roles: props.userRoles?.map(role => role.name) || [],
   profile_image: null,
+  commission_rate: props.user?.commission_rate || 0,
   _method: isEdit.value ? 'PUT' : 'POST',
+})
+
+// Watch for role changes to handle commission rate
+watch(hasSalespersonRole, (newVal) => {
+  if (!newVal) {
+    // Reset commission rate if salesperson role is removed
+    form.commission_rate = 0
+  }
 })
 
 // Set initial image preview for edit
