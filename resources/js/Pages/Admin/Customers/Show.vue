@@ -138,6 +138,10 @@
                     <p class="text-gray-900 font-medium">{{ customer.city?.name || 'Not specified' }}</p>
                   </div>
                   <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subcity</label>
+                    <p class="text-gray-900 font-medium">{{ customer.subcity?.name || 'Not specified' }}</p>
+                  </div>
+                  <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Specific Location</label>
                     <p class="text-gray-900 font-medium">{{ customer.specific_location || 'Not specified' }}</p>
                   </div>
@@ -163,14 +167,14 @@
               <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                 <div class="space-y-3">
-                  <!-- Edit Button -->
+                  <!-- Create Contract Button -->
                   <button 
-                    v-if="permissions.edit"
-                    @click="goToEdit"
-                    class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
+                    v-if="permissions.create && isValidForContract"
+                    @click="openContractModal"
+                    class="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
                   >
-                    <PencilIcon class="w-4 h-4" />
-                    <span>Edit Customer</span>
+                    <DocumentTextIcon class="w-4 h-4" />
+                    <span>Create Contract</span>
                   </button>
 
                   <!-- Approve Button -->
@@ -253,12 +257,40 @@
             </div>
           </div>
 
-          <!-- Payment Summary -->
+          <!-- Payment Summary - Editable -->
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <div class="flex justify-between items-center mb-6">
               <div>
                 <h3 class="text-lg font-semibold text-gray-900">Payment Summary</h3>
-                <p class="text-gray-600 text-sm mt-1">Total: {{ customer.payments?.length || 0 }} payment(s) • ${{ totalPaymentAmount.toFixed(2) }}</p>
+                <p class="text-gray-600 text-sm mt-1">All amounts are editable</p>
+              </div>
+              <div v-if="permissions.edit" class="flex space-x-2">
+                <button 
+                  v-if="!editingPayment"
+                  @click="startEditingPayment"
+                  class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                >
+                  <PencilIcon class="w-4 h-4" />
+                  <span>Edit Payment</span>
+                </button>
+                <button 
+                  v-else
+                  @click="cancelEditingPayment"
+                  class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                >
+                  <XMarkIcon class="w-4 h-4" />
+                  <span>Cancel</span>
+                </button>
+                <button 
+                  v-if="editingPayment"
+                  @click="savePaymentInfo"
+                  :disabled="savingPayment"
+                  class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                >
+                  <CheckIcon class="w-4 h-4" />
+                  <span v-if="savingPayment">Saving...</span>
+                  <span v-else>Save</span>
+                </button>
               </div>
             </div>
             
@@ -266,28 +298,87 @@
             <div class="mb-6">
               <div class="flex justify-between mb-2">
                 <span class="text-sm font-medium text-gray-700">Payment Progress</span>
-                <span class="text-sm font-medium text-gray-700">{{ customer.payment_progress || 0 }}%</span>
+                <span class="text-sm font-medium text-gray-700">{{ paymentProgress.toFixed(0) }}%</span>
               </div>
               <div class="w-full bg-gray-200 rounded-full h-2.5">
                 <div 
                   class="h-2.5 rounded-full transition-all duration-500"
                   :class="getPaymentProgressClass(customer.payment_status)"
-                  :style="{ width: (customer.payment_progress || 0) + '%' }"
+                  :style="{ width: paymentProgress + '%' }"
                 ></div>
               </div>
               <div class="grid grid-cols-3 gap-4 mt-4">
+                <!-- Total Amount -->
                 <div class="bg-blue-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-blue-700">Total Amount</label>
-                  <p class="mt-1 text-xl font-semibold text-blue-900">${{ formatNumber(customer.total_payment_amount) }}</p>
+                  <label class="block text-xs font-medium text-blue-700 mb-1">Total Amount</label>
+                  <div v-if="!editingPayment">
+                    <p class="mt-1 text-xl font-semibold text-blue-900">${{ formatNumber(customer.total_payment_amount) }}</p>
+                  </div>
+                  <div v-else>
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                      <input
+                        v-model="paymentForm.total_payment_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="w-full pl-8 pr-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold"
+                        @input="calculateRemainingAmount"
+                      />
+                    </div>
+                  </div>
                 </div>
+                
+                <!-- Paid Amount -->
                 <div class="bg-green-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-green-700">Paid Amount</label>
-                  <p class="mt-1 text-xl font-semibold text-green-900">${{ formatNumber(customer.paid_amount) }}</p>
+                  <label class="block text-xs font-medium text-green-700 mb-1">Paid Amount</label>
+                  <div v-if="!editingPayment">
+                    <p class="mt-1 text-xl font-semibold text-green-900">${{ formatNumber(customer.paid_amount) }}</p>
+                  </div>
+                  <div v-else>
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                      <input
+                        v-model="paymentForm.paid_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        :max="paymentForm.total_payment_amount"
+                        class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold"
+                        @input="calculateRemainingAmount"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div class="bg-rose-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-rose-700">Remaining</label>
-                  <p class="mt-1 text-xl font-semibold text-rose-900">${{ formatNumber(customer.remaining_amount) }}</p>
+                
+                <!-- Remaining Amount -->
+                <div class="bg-green-50 p-4 rounded-lg">
+                  <label class="block text-xs font-medium text-green-700 mb-1">Remaining</label>
+                  <div v-if="!editingPayment">
+                    <p class="mt-1 text-xl font-semibold text-green-900">${{ formatNumber(customer.remaining_amount) }}</p>
+                  </div>
+                  <div v-else>
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                      <input
+                        v-model="paymentForm.remaining_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold bg-gray-100"
+                        readonly
+                      />
+                    </div>
+                  </div>
                 </div>
+              </div>
+              
+              <!-- Payment Status -->
+              <div class="mt-4">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Payment Status</label>
+                <span :class="getPaymentStatusBadgeClass(paymentForm.payment_status)" class="px-3 py-1 rounded-lg text-sm font-semibold">
+                  {{ formatPaymentStatus(paymentForm.payment_status) }}
+                </span>
               </div>
             </div>
 
@@ -347,49 +438,157 @@
             </div>
           </div>
 
-          <!-- Commission Summary -->
+          <!-- Commission Summary - Editable -->
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <div class="flex justify-between items-center mb-6">
               <div>
                 <h3 class="text-lg font-semibold text-gray-900">Commission Summary</h3>
-                <p v-if="customer.commission_user" class="text-gray-600 text-sm mt-1">
-                  Assigned to: {{ customer.commission_user.name }} ({{ customer.commission_rate }}%)
-                </p>
-                <p v-else class="text-gray-600 text-sm mt-1">No commission user assigned</p>
+                <p class="text-gray-600 text-sm mt-1">Commission based on user's rate × payment amount</p>
+              </div>
+              <div v-if="permissions.edit" class="flex space-x-2">
+                <button 
+                  v-if="!editingCommission"
+                  @click="startEditingCommission"
+                  class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                >
+                  <PencilIcon class="w-4 h-4" />
+                  <span>Edit Commission</span>
+                </button>
+                <button 
+                  v-else
+                  @click="cancelEditingCommission"
+                  class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                >
+                  <XMarkIcon class="w-4 h-4" />
+                  <span>Cancel</span>
+                </button>
+                <button 
+                  v-if="editingCommission"
+                  @click="saveCommissionInfo"
+                  :disabled="savingCommission"
+                  class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                >
+                  <CheckIcon class="w-4 h-4" />
+                  <span v-if="savingCommission">Saving...</span>
+                  <span v-else>Save</span>
+                </button>
               </div>
             </div>
 
             <div class="mb-6">
               <div class="flex justify-between mb-2">
                 <span class="text-sm font-medium text-gray-700">Commission Progress</span>
-                <span class="text-sm font-medium text-gray-700">{{ customer.commission_progress || 0 }}%</span>
+                <span class="text-sm font-medium text-gray-700">{{ commissionProgress.toFixed(0) }}%</span>
               </div>
               <div class="w-full bg-gray-200 rounded-full h-2.5">
                 <div 
-                  class="h-2.5 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
-                  :style="{ width: (customer.commission_progress || 0) + '%' }"
+                  class="h-2.5 rounded-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500"
+                  :style="{ width: commissionProgress + '%' }"
                 ></div>
               </div>
-              <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                <!-- Commission User -->
                 <div class="bg-blue-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-blue-700">Total Commission</label>
-                  <p class="mt-1 text-xl font-semibold text-blue-900">${{ formatNumber(customer.commission_amount) }}</p>
+                  <label class="block text-xs font-medium text-blue-700 mb-1">Commission User</label>
+                  <div v-if="!editingCommission">
+                    <p v-if="customer.commissionUser" class="mt-1 font-semibold text-blue-900">{{ customer.commissionUser.name }}</p>
+                    <p v-else class="mt-1 text-gray-500 italic">Not assigned</p>
+                  </div>
+                  <div v-else>
+                    <select
+                      v-model="commissionForm.commission_user_id"
+                      class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      @change="onCommissionUserChange"
+                    >
+                      <option value="">Select User</option>
+                      <option v-for="user in commissionUsers" :key="user.id" :value="user.id">
+                        {{ user.name }} ({{ user.commission_rate }}%)
+                      </option>
+                    </select>
+                  </div>
                 </div>
+                
+                <!-- Commission Rate -->
+                <div class="bg-blue-50 p-4 rounded-lg">
+                  <label class="block text-xs font-medium text-blue-700 mb-1">Commission Rate</label>
+                  <div v-if="!editingCommission">
+                    <p class="mt-1 font-semibold text-blue-900">{{ customer.commission_rate }}%</p>
+                  </div>
+                  <div v-else>
+                    <div class="relative">
+                      <input
+                        v-model="commissionForm.commission_rate"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold"
+                        @input="calculateCommissionAmount"
+                      />
+                      <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Total Commission -->
+                <div class="bg-blue-50 p-4 rounded-lg">
+                  <label class="block text-xs font-medium text-blue-700 mb-1">Total Commission</label>
+                  <div v-if="!editingCommission">
+                    <p class="mt-1 text-xl font-semibold text-blue-900">${{ formatNumber(customer.commission_amount) }}</p>
+                  </div>
+                  <div v-else>
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                      <input
+                        v-model="commissionForm.commission_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="w-full pl-8 pr-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold bg-gray-100"
+                        readonly
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Paid Commission -->
                 <div class="bg-green-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-green-700">Paid Commission</label>
-                  <p class="mt-1 text-xl font-semibold text-green-900">${{ formatNumber(customer.paid_commission) }}</p>
+                  <label class="block text-xs font-medium text-green-700 mb-1">Paid Commission</label>
+                  <div v-if="!editingCommission">
+                    <p class="mt-1 text-xl font-semibold text-green-900">${{ formatNumber(customer.paid_commission) }}</p>
+                  </div>
+                  <div v-else>
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                      <input
+                        v-model="commissionForm.paid_commission"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold"
+                      />
+                    </div>
+                  </div>
                 </div>
+              </div>
+              
+              <!-- Commission Status -->
+              <div class="mt-4">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Commission Status</label>
+                <span :class="getCommissionStatusBadgeClass(commissionForm.commission_status)" class="px-3 py-1 rounded-lg text-sm font-semibold">
+                  {{ formatCommissionStatus(commissionForm.commission_status) }}
+                </span>
               </div>
             </div>
 
             <!-- Commission User Info -->
-            <div v-if="customer.commission_user" class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
+            <div v-if="customer.commissionUser && !editingCommission" class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
               <div class="flex items-center space-x-4">
                 <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
                   <UserIcon class="w-6 h-6 text-white" />
                 </div>
                 <div class="flex-1">
-                  <h4 class="font-semibold text-gray-900">{{ customer.commission_user.name }}</h4>
+                  <h4 class="font-semibold text-gray-900">{{ customer.commissionUser.name }}</h4>
                   <p class="text-sm text-gray-600">Commission Rate: {{ customer.commission_rate }}%</p>
                 </div>
                 <div class="text-right">
@@ -451,13 +650,12 @@
                       </span>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-600">
-                      {{ formatDate(contract.created_at) }}
-                    </td>
+                      {{ formatDate(contract.created_at) }}</td>
                     <td class="px-6 py-4">
                       <div class="flex gap-2">
                         <!-- View button -->
                         <button 
-                          @click="viewContract(contract)"
+                          @click="viewContract(contract.id)"
                           class="p-1.5 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-sm hover:shadow"
                           title="View"
                         >
@@ -556,7 +754,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import ContractModal from '@/Pages/Admin/Contracts/ContractModal.vue'
@@ -572,9 +770,8 @@ import {
   Bars3Icon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  BanknotesIcon,
-  ChevronRightIcon,
   CreditCardIcon,
+  ChevronRightIcon,
   DocumentTextIcon,
   UserIcon
 } from '@heroicons/vue/24/outline'
@@ -595,6 +792,18 @@ const props = defineProps({
   flash: {
     type: Object,
     default: () => ({})
+  },
+  commissionUsers: {
+    type: Array,
+    default: () => []
+  },
+  paymentProgress: {
+    type: Number,
+    default: 0
+  },
+  commissionProgress: {
+    type: Number,
+    default: 0
   }
 })
 
@@ -605,6 +814,12 @@ const showContractModal = ref(false)
 const approveLoading = ref(false)
 const rejectLoading = ref(false)
 
+// Editing states
+const editingPayment = ref(false)
+const editingCommission = ref(false)
+const savingPayment = ref(false)
+const savingCommission = ref(false)
+
 // Contract modal data
 const selectedContract = ref(null)
 
@@ -613,9 +828,49 @@ const rejectForm = reactive({
   reason: ''
 })
 
+const paymentForm = reactive({
+  total_payment_amount: props.customer.total_payment_amount || 0,
+  paid_amount: props.customer.paid_amount || 0,
+  remaining_amount: props.customer.remaining_amount || 0,
+  payment_status: props.customer.payment_status || 'not_paid'
+})
+
+const commissionForm = reactive({
+  commission_user_id: props.customer.commission_user_id || '',
+  commission_rate: props.customer.commission_rate || 0,
+  commission_amount: props.customer.commission_amount || 0,
+  paid_commission: props.customer.paid_commission || 0,
+  commission_status: props.customer.commission_status || 'not_applicable'
+})
+
 // Flash message state
 const flashMessage = ref(props.flash?.message || '')
 const flashMessageType = ref(props.flash?.type || 'success')
+
+// Watch for changes in customer data
+watch(() => props.customer, (newCustomer) => {
+  // Update forms with new data
+  if (newCustomer) {
+    paymentForm.total_payment_amount = newCustomer.total_payment_amount || 0
+    paymentForm.paid_amount = newCustomer.paid_amount || 0
+    paymentForm.remaining_amount = newCustomer.remaining_amount || 0
+    paymentForm.payment_status = newCustomer.payment_status || 'not_paid'
+    
+    commissionForm.commission_user_id = newCustomer.commission_user_id || ''
+    commissionForm.commission_rate = newCustomer.commission_rate || 0
+    commissionForm.commission_amount = newCustomer.commission_amount || 0
+    commissionForm.paid_commission = newCustomer.paid_commission || 0
+    commissionForm.commission_status = newCustomer.commission_status || 'not_applicable'
+  }
+}, { deep: true })
+
+// Watch for flash messages
+watch(() => props.flash, (newFlash) => {
+  if (newFlash?.message) {
+    flashMessage.value = newFlash.message
+    flashMessageType.value = newFlash.type || 'success'
+  }
+}, { deep: true })
 
 // Computed
 const flashMessageClass = computed(() => {
@@ -624,12 +879,14 @@ const flashMessageClass = computed(() => {
     : 'bg-red-50 border-red-200 text-red-800'
 })
 
-const totalPaymentAmount = computed(() => {
-  if (!props.customer.payments || !Array.isArray(props.customer.payments)) return 0
-  return props.customer.payments.reduce((sum, payment) => {
-    const amount = parseFloat(payment.amount) || 0
-    return sum + amount
-  }, 0)
+const paymentProgress = computed(() => {
+  if (!paymentForm.total_payment_amount) return 0
+  return Math.min(100, (paymentForm.paid_amount / paymentForm.total_payment_amount) * 100)
+})
+
+const commissionProgress = computed(() => {
+  if (!commissionForm.commission_amount) return 0
+  return Math.min(100, (commissionForm.paid_commission / commissionForm.commission_amount) * 100)
 })
 
 // Computed properties for button visibility
@@ -647,7 +904,6 @@ const showRejectButton = computed(() => {
 
 // New computed properties for contract creation
 const isValidForContract = computed(() => {
-  // Valid statuses for creating a contract (based on ContractController@create)
   const validStatuses = ['draft', 'contract_created'];
   return validStatuses.includes(props.customer.status);
 });
@@ -670,19 +926,39 @@ function getStatusBadgeClass(status) {
 function getPaymentProgressClass(status) {
   const map = {
     paid: 'bg-gradient-to-r from-green-500 to-green-600',
-    half_paid: 'bg-gradient-to-r from-yellow-500 to-yellow-600',
-    pending: 'bg-gradient-to-r from-blue-500 to-blue-600',
-    not_paid: 'bg-gradient-to-r from-red-500 to-red-600'
+    half_paid: 'bg-gradient-to-r from-green-400 to-green-500',
+    pending: 'bg-gradient-to-r from-green-300 to-green-400',
+    not_paid: 'bg-gradient-to-r from-green-200 to-green-300'
   }
-  return map[status] || 'bg-gray-400'
+  return map[status] || 'bg-green-200'
+}
+
+function getPaymentStatusBadgeClass(status) {
+  const map = {
+    paid: 'bg-green-100 text-green-800',
+    half_paid: 'bg-green-100 text-green-800',
+    pending: 'bg-green-100 text-green-800',
+    not_paid: 'bg-green-100 text-green-800'
+  }
+  return map[status] || 'bg-green-100 text-green-800'
+}
+
+function getCommissionStatusBadgeClass(status) {
+  const map = {
+    paid: 'bg-green-100 text-green-800',
+    pending: 'bg-green-100 text-green-800',
+    not_paid: 'bg-green-100 text-green-800',
+    not_applicable: 'bg-green-100 text-green-800'
+  }
+  return map[status] || 'bg-green-100 text-green-800'
 }
 
 function getPaymentStatusClass(payment) {
   const today = new Date().setHours(0, 0, 0, 0)
   const paymentDate = new Date(payment.payment_date).setHours(0, 0, 0, 0)
   
-  if (paymentDate < today) return 'bg-red-100 text-red-800'
-  if (paymentDate === today) return 'bg-yellow-100 text-yellow-800'
+  if (paymentDate < today) return 'bg-green-100 text-green-800'
+  if (paymentDate === today) return 'bg-green-100 text-green-800'
   return 'bg-green-100 text-green-800'
 }
 
@@ -690,9 +966,9 @@ function getPaymentStatus(payment) {
   const today = new Date().setHours(0, 0, 0, 0)
   const paymentDate = new Date(payment.payment_date).setHours(0, 0, 0, 0)
   
-  if (paymentDate < today) return 'Overdue'
-  if (paymentDate === today) return 'Due Today'
-  return 'Upcoming'
+  if (paymentDate < today) return 'Paid'
+  if (paymentDate === today) return 'Paid'
+  return 'Paid'
 }
 
 function getPaymentMethodIcon(method) {
@@ -705,6 +981,26 @@ function getPaymentMethodIcon(method) {
     'Other': '💸'
   }
   return icons[method] || '💸'
+}
+
+function formatPaymentStatus(status) {
+  const map = {
+    paid: 'Fully Paid',
+    half_paid: 'Half Paid',
+    pending: 'Partially Paid',
+    not_paid: 'Not Paid'
+  }
+  return map[status] || status
+}
+
+function formatCommissionStatus(status) {
+  const map = {
+    paid: 'Commission Paid',
+    pending: 'Commission Pending',
+    not_paid: 'Commission Not Paid',
+    not_applicable: 'No Commission'
+  }
+  return map[status] || status
 }
 
 function formatNumber(num) {
@@ -731,6 +1027,281 @@ function formatDate(dateString) {
   })
 }
 
+// Helper function to get CSRF token
+function getCsrfToken() {
+  // Try multiple ways to get the CSRF token
+  const tokenFromMeta = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+  const tokenFromInput = document.querySelector('input[name="_token"]')?.value
+  const tokenFromWindow = window.csrfToken
+  
+  const token = tokenFromMeta || tokenFromInput || tokenFromWindow
+  
+  if (!token) {
+    console.error('CSRF token not found. Checked meta tag, input field, and window object.')
+  }
+  
+  return token
+}
+
+// Payment editing methods
+const startEditingPayment = () => {
+  paymentForm.total_payment_amount = parseFloat(props.customer.total_payment_amount) || 0
+  paymentForm.paid_amount = parseFloat(props.customer.paid_amount) || 0
+  paymentForm.remaining_amount = parseFloat(props.customer.remaining_amount) || 0
+  paymentForm.payment_status = props.customer.payment_status || 'not_paid'
+  editingPayment.value = true
+}
+
+const cancelEditingPayment = () => {
+  editingPayment.value = false
+}
+
+const calculateRemainingAmount = () => {
+  const total = parseFloat(paymentForm.total_payment_amount) || 0
+  const paid = parseFloat(paymentForm.paid_amount) || 0
+  paymentForm.remaining_amount = Math.max(0, total - paid)
+  
+  // Update payment status
+  if (total > 0) {
+    if (paid >= total) {
+      paymentForm.payment_status = 'paid'
+    } else if (paid >= (total * 0.5)) {
+      paymentForm.payment_status = 'half_paid'
+    } else if (paid > 0) {
+      paymentForm.payment_status = 'pending'
+    } else {
+      paymentForm.payment_status = 'not_paid'
+    }
+  } else {
+    paymentForm.payment_status = 'not_paid'
+  }
+}
+
+const savePaymentInfo = async () => {
+  savingPayment.value = true
+  
+  try {
+    calculateRemainingAmount()
+    
+    const csrfToken = getCsrfToken()
+    if (!csrfToken) {
+      throw new Error('CSRF token not found. Please refresh the page and try again.')
+    }
+    
+    const response = await fetch(`/admin/customers/${props.customer.id}/update-payment-info`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({
+        total_payment_amount: parseFloat(paymentForm.total_payment_amount) || 0,
+        paid_amount: parseFloat(paymentForm.paid_amount) || 0,
+        remaining_amount: parseFloat(paymentForm.remaining_amount) || 0,
+        payment_status: paymentForm.payment_status
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (response.ok && data.success) {
+      showFlashMessage('Payment information updated successfully!', 'success')
+      editingPayment.value = false
+      
+      // Refresh the page to get updated data
+      router.reload({ preserveScroll: true, preserveState: false })
+    } else {
+      showFlashMessage(data.message || 'Failed to update payment information.', 'error')
+    }
+  } catch (error) {
+    console.error('Error updating payment info:', error)
+    showFlashMessage('Failed to update payment information. ' + error.message, 'error')
+  } finally {
+    savingPayment.value = false
+  }
+}
+
+// Commission editing methods
+const startEditingCommission = () => {
+  commissionForm.commission_user_id = props.customer.commission_user_id || ''
+  commissionForm.commission_rate = parseFloat(props.customer.commission_rate) || 0
+  commissionForm.commission_amount = parseFloat(props.customer.commission_amount) || 0
+  commissionForm.paid_commission = parseFloat(props.customer.paid_commission) || 0
+  commissionForm.commission_status = props.customer.commission_status || 'not_applicable'
+  editingCommission.value = true
+}
+
+const cancelEditingCommission = () => {
+  editingCommission.value = false
+}
+
+const onCommissionUserChange = () => {
+  if (commissionForm.commission_user_id) {
+    const user = props.commissionUsers.find(u => u.id == commissionForm.commission_user_id)
+    if (user) {
+      commissionForm.commission_rate = user.commission_rate || 0
+      calculateCommissionAmount()
+    }
+  } else {
+    commissionForm.commission_rate = 0
+    commissionForm.commission_amount = 0
+    commissionForm.commission_status = 'not_applicable'
+  }
+}
+
+const calculateCommissionAmount = () => {
+  const total = parseFloat(paymentForm.total_payment_amount) || parseFloat(props.customer.total_payment_amount) || 0
+  const rate = parseFloat(commissionForm.commission_rate) || 0
+  commissionForm.commission_amount = (total * rate) / 100
+  
+  // Update commission status
+  if (commissionForm.commission_amount > 0) {
+    if (commissionForm.paid_commission >= commissionForm.commission_amount) {
+      commissionForm.commission_status = 'paid'
+    } else if (commissionForm.paid_commission > 0) {
+      commissionForm.commission_status = 'pending'
+    } else {
+      commissionForm.commission_status = 'not_paid'
+    }
+  } else {
+    commissionForm.commission_status = 'not_applicable'
+  }
+}
+
+const saveCommissionInfo = async () => {
+  savingCommission.value = true
+  
+  try {
+    calculateCommissionAmount()
+    
+    const csrfToken = getCsrfToken()
+    if (!csrfToken) {
+      throw new Error('CSRF token not found. Please refresh the page and try again.')
+    }
+    
+    const response = await fetch(`/admin/customers/${props.customer.id}/update-commission-info`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({
+        commission_user_id: commissionForm.commission_user_id || null,
+        commission_rate: parseFloat(commissionForm.commission_rate) || 0,
+        commission_amount: parseFloat(commissionForm.commission_amount) || 0,
+        paid_commission: parseFloat(commissionForm.paid_commission) || 0,
+        commission_status: commissionForm.commission_status
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (response.ok && data.success) {
+      showFlashMessage('Commission information updated successfully!', 'success')
+      editingCommission.value = false
+      
+      // Update the local customer data with the response data
+      if (data.data) {
+        // Update commission user info
+        if (data.data.commissionUser) {
+          props.customer.commissionUser = data.data.commissionUser
+        }
+        // Update commission fields
+        props.customer.commission_user_id = data.data.commission_user_id
+        props.customer.commission_rate = data.data.commission_rate
+        props.customer.commission_amount = data.data.commission_amount
+        props.customer.paid_commission = data.data.paid_commission
+        props.customer.commission_status = data.data.commission_status
+        
+        // Also update the commission form for consistency
+        commissionForm.commission_user_id = data.data.commission_user_id
+        commissionForm.commission_rate = data.data.commission_rate
+        commissionForm.commission_amount = data.data.commission_amount
+        commissionForm.paid_commission = data.data.paid_commission
+        commissionForm.commission_status = data.data.commission_status
+      }
+      
+    } else {
+      showFlashMessage(data.message || 'Failed to update commission information.', 'error')
+    }
+  } catch (error) {
+    console.error('Error updating commission info:', error)
+    showFlashMessage('Failed to update commission information. ' + error.message, 'error')
+  } finally {
+    savingCommission.value = false
+  }
+}
+
+// Also update the rejectCustomer method to use the same CSRF token function
+const rejectCustomer = () => {
+  if (!rejectForm.reason.trim()) {
+    showFlashMessage('Please provide a rejection reason.', 'error')
+    return
+  }
+  
+  if (!window.confirm(`Reject "${props.customer.name}"? This action cannot be undone.`)) {
+    return
+  }
+  
+  rejectLoading.value = true
+  
+  const csrfToken = getCsrfToken()
+  if (!csrfToken) {
+    showFlashMessage('CSRF token not found. Please refresh the page and try again.', 'error')
+    rejectLoading.value = false
+    return
+  }
+  
+  fetch(`/admin/customers/${props.customer.id}/reject`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrfToken,
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify(rejectForm)
+  })
+  .then(async response => {
+    const data = await response.json()
+    
+    if (response.ok && data.success) {
+      showFlashMessage(data.message, 'success')
+      closeRejectModal()
+      
+      setTimeout(() => {
+        router.get('/admin/customers')
+      }, 1500)
+    } else {
+      if (data.errors && data.errors.reason) {
+        showFlashMessage(data.errors.reason[0], 'error')
+      } else if (data.message) {
+        showFlashMessage(data.message, 'error')
+      } else {
+        showFlashMessage('Failed to reject customer.', 'error')
+      }
+    }
+  })
+  .catch(error => {
+    console.error('Reject error:', error)
+    showFlashMessage('Failed to reject customer. ' + error.message, 'error')
+  })
+  .finally(() => {
+    rejectLoading.value = false
+  })
+}
+
+// Watch for changes in payment total to recalculate commission
+watch(() => paymentForm.total_payment_amount, () => {
+  if (editingCommission.value) {
+    calculateCommissionAmount()
+  }
+})
+
 // Flash methods
 const clearFlashMessage = () => {
   flashMessage.value = ''
@@ -740,12 +1311,14 @@ const clearFlashMessage = () => {
 const showFlashMessage = (msg, type = 'success') => {
   flashMessage.value = msg
   flashMessageType.value = type
+  
+  setTimeout(() => {
+    clearFlashMessage()
+  }, 5000)
 }
 
 // Actions
 const goBack = () => router.get('/admin/customers')
-const goToEdit = () => router.get(`/admin/customers/${props.customer.id}/edit`)
-
 const viewAllPayments = () => {
   router.get(`/admin/customers/${props.customer.id}/payments`)
 }
@@ -774,6 +1347,12 @@ const editContract = (contract) => {
 
 const onContractSuccess = (message) => {
   showFlashMessage(message, 'success')
+  router.reload({ preserveScroll: true, preserveState: false })
+}
+
+// View contract method
+const viewContract = (contractId) => {
+  router.get(`/admin/contracts/${contractId}`)
 }
 
 // Approve Customer
@@ -792,44 +1371,12 @@ const approveCustomer = () => {
       showFlashMessage('Customer approved successfully! Page will reload...', 'success')
       
       setTimeout(() => {
-        window.location.reload()
+        router.reload({ preserveScroll: true, preserveState: false })
       }, 1500)
     },
-    onError: (errors) => {
+    onError: () => {
       approveLoading.value = false
       showFlashMessage('Failed to approve customer.', 'error')
-    }
-  })
-}
-
-// Reject Customer
-const rejectCustomer = () => {
-  if (!rejectForm.reason.trim()) {
-    showFlashMessage('Please provide a rejection reason.', 'error')
-    return
-  }
-  
-  if (!window.confirm(`Reject "${props.customer.name}"?`)) {
-    return
-  }
-  
-  rejectLoading.value = true
-  
-  router.post(`/admin/customers/${props.customer.id}/reject`, rejectForm, {
-    preserveScroll: false,
-    preserveState: false,
-    onSuccess: () => {
-      rejectLoading.value = false
-      closeRejectModal()
-      showFlashMessage('Customer rejected successfully! Page will reload...', 'success')
-      
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
-    },
-    onError: (errors) => {
-      rejectLoading.value = false
-      showFlashMessage('Failed to reject customer.', 'error')
     }
   })
 }
@@ -845,10 +1392,6 @@ const deleteCustomer = () => {
 }
 
 // Contract actions
-const viewContract = (contract) => {
-  router.get(`/admin/contracts/${contract.id}`)
-}
-
 const deleteContract = (id) => {
   if (confirm('Are you sure you want to delete this contract?')) {
     router.delete(`/admin/contracts/${id}`, {
@@ -864,6 +1407,10 @@ onMounted(() => {
     flashMessage.value = props.flash.message
     flashMessageType.value = props.flash.type || 'success'
   }
+  
+  // Initialize forms
+  calculateRemainingAmount()
+  calculateCommissionAmount()
 })
 </script>
 
@@ -873,5 +1420,18 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

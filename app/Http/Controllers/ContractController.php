@@ -119,6 +119,7 @@ class ContractController extends Controller
             'end_date' => 'required|date|after:start_date',
             'payment_terms' => 'required|string|max:1000',
             'file' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
+            'redirect_to_customer' => 'nullable|in:true,false,1,0',
         ]);
 
         try {
@@ -126,7 +127,7 @@ class ContractController extends Controller
 
             $contractData = [
                 'customer_id' => $validated['customer_id'],
-                'proposal_id' => $validated['proposal_id'],
+                'proposal_id' => $validated['proposal_id'] ?? null,
                 'contract_title' => $validated['contract_title'],
                 'contract_description' => $validated['contract_description'],
                 'total_value' => $validated['total_value'],
@@ -164,7 +165,11 @@ class ContractController extends Controller
 
             DB::commit();
 
-            if ($request->has('redirect_to_customer')) {
+            // Check if redirect_to_customer is set - handle both string and boolean values
+            $redirectToCustomer = $request->input('redirect_to_customer', false);
+            $shouldRedirect = filter_var($redirectToCustomer, FILTER_VALIDATE_BOOLEAN);
+            
+            if ($shouldRedirect) {
                 return redirect()->route('customers.show', $validated['customer_id'])
                     ->with('success', 'Contract created successfully.');
             }
@@ -174,7 +179,8 @@ class ContractController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error in ContractController@store: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to create contract. Please try again.');
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return redirect()->back()->with('error', 'Failed to create contract. Please try again. Error: ' . $e->getMessage());
         }
     }
 
@@ -221,7 +227,7 @@ class ContractController extends Controller
         $this->checkPermission('edit contracts');
 
         try {
-            $contract = Contract::findOrFail($id);
+            $contract = Contract::with(['customer', 'proposal'])->findOrFail($id);
             
             $customers = Customer::whereIn('status', ['draft', 'contract_created', 'accepted'])
                 ->select('id', 'name', 'email')
@@ -252,6 +258,14 @@ class ContractController extends Controller
     {
         $this->checkPermission('edit contracts');
 
+        // Debug: Log the incoming request
+        Log::info('Contract update request received:', [
+            'id' => $id,
+            'data' => $request->all(),
+            'files' => $request->hasFile('file'),
+            'redirect_to_customer' => $request->redirect_to_customer
+        ]);
+
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'proposal_id' => 'nullable|exists:proposals,id',
@@ -262,6 +276,7 @@ class ContractController extends Controller
             'end_date' => 'required|date|after:start_date',
             'payment_terms' => 'required|string|max:1000',
             'file' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
+            'redirect_to_customer' => 'nullable|in:true,false,1,0',
         ]);
 
         try {
@@ -274,7 +289,7 @@ class ContractController extends Controller
 
             $updateData = [
                 'customer_id' => $validated['customer_id'],
-                'proposal_id' => $validated['proposal_id'],
+                'proposal_id' => $validated['proposal_id'] ?? null,
                 'contract_title' => $validated['contract_title'],
                 'contract_description' => $validated['contract_description'],
                 'total_value' => $validated['total_value'],
@@ -288,8 +303,11 @@ class ContractController extends Controller
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('contracts', $fileName, 'public');
                 $updateData['file'] = '/storage/' . $filePath;
+                
+                Log::info('File uploaded:', ['file_path' => $updateData['file']]);
             }
 
+            Log::info('Updating contract with data:', $updateData);
             $contract->update($updateData);
 
             // Update customer payment total if contract total value changed or customer changed
@@ -312,12 +330,27 @@ class ContractController extends Controller
 
             DB::commit();
 
-            return redirect()->back()->with('success', 'Contract updated successfully.');
+            Log::info('Contract updated successfully, redirecting...', [
+                'redirect_to_customer' => $request->redirect_to_customer,
+                'customer_id' => $validated['customer_id']
+            ]);
+
+            // Check if redirect_to_customer is set - handle both string and boolean values
+            $redirectToCustomer = $request->input('redirect_to_customer', false);
+            $shouldRedirect = filter_var($redirectToCustomer, FILTER_VALIDATE_BOOLEAN);
+            
+            if ($shouldRedirect) {
+                return redirect()->route('customers.show', $validated['customer_id'])
+                    ->with('success', 'Contract updated successfully.');
+            }
+
+            return redirect()->route('contracts.index')->with('success', 'Contract updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error in ContractController@update: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to update contract. Please try again.');
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return redirect()->back()->with('error', 'Failed to update contract. Please try again. Error: ' . $e->getMessage());
         }
     }
 

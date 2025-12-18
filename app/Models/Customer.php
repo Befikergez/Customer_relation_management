@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -28,12 +29,15 @@ class Customer extends Model
         'total_payment_amount',
         'paid_amount',
         'remaining_amount',
-        // Commission columns
+        // Commission columns - Updated
         'commission_user_id',
         'commission_rate',
         'commission_amount',
         'commission_status',
         'paid_commission',
+        'commission_progress',
+        // Payment progress
+        'payment_progress',
         // Approval columns
         'approved_at',
         'approved_by',
@@ -49,13 +53,14 @@ class Customer extends Model
         'commission_rate' => 'decimal:2',
         'commission_amount' => 'decimal:2',
         'paid_commission' => 'decimal:2',
+        'commission_progress' => 'decimal:2',
+        'payment_progress' => 'decimal:2',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     protected $appends = [
-        'payment_progress',
-        'commission_progress',
         'payment_status_color',
         'commission_status_color',
     ];
@@ -76,7 +81,14 @@ class Customer extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    // Updated relationship to use commission_user_id
     public function commissionUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'commission_user_id');
+    }
+
+    // Alias for backward compatibility
+    public function salesperson(): BelongsTo
     {
         return $this->belongsTo(User::class, 'commission_user_id');
     }
@@ -89,6 +101,11 @@ class Customer extends Model
     public function contracts(): HasMany
     {
         return $this->hasMany(Contract::class);
+    }
+
+    public function potentialCustomer(): BelongsTo
+    {
+        return $this->belongsTo(PotentialCustomer::class, 'potential_customer_id');
     }
 
     // Accessors
@@ -114,7 +131,8 @@ class Customer extends Model
             'paid' => 'bg-green-500',
             'half_paid' => 'bg-yellow-500',
             'pending' => 'bg-blue-500',
-            default => 'bg-red-500',
+            'not_paid' => 'bg-green-500', // Changed from gray to green
+            default => 'bg-green-500', // Changed from red to green
         };
     }
 
@@ -123,7 +141,9 @@ class Customer extends Model
         return match($this->commission_status) {
             'paid' => 'bg-green-500',
             'pending' => 'bg-yellow-500',
-            default => 'bg-red-500',
+            'not_paid' => 'bg-green-500', // Changed from gray to green
+            'not_applicable' => 'bg-green-500', // Changed from gray to green
+            default => 'bg-green-500', // Changed from red to green
         };
     }
 
@@ -174,8 +194,8 @@ class Customer extends Model
 
     public function updateCommissionStatus(): void
     {
-        if ($this->commission_amount <= 0) {
-            $this->commission_status = 'not_paid';
+        if (!$this->commission_user_id || $this->commission_amount <= 0) {
+            $this->commission_status = 'not_applicable';
         } elseif ($this->paid_commission >= $this->commission_amount) {
             $this->commission_status = 'paid';
         } elseif ($this->paid_commission > 0) {
@@ -194,5 +214,16 @@ class Customer extends Model
             $this->updateCommissionStatus();
             $this->save();
         }
+    }
+
+    // Helper method for backward compatibility
+    public function getSalespersonIdAttribute()
+    {
+        return $this->commission_user_id;
+    }
+
+    public function setSalespersonIdAttribute($value)
+    {
+        $this->attributes['commission_user_id'] = $value;
     }
 }

@@ -49,58 +49,370 @@ class PaymentController extends Controller
         ])->findOrFail($customerId);
     }
 
-    // For potential customers
-    // For potential customers (index method)
-public function index($customerId)
-{
-    $this->checkPermission('view payments');
-    
-    try {
-        $potentialCustomer = $this->getFullPotentialCustomer($customerId);
-        $tables = NavigationService::getTablesForUser(auth()->user());
+    /**
+     * Show payment details (global route)
+     */
+    public function show($paymentId)
+    {
+        $this->checkPermission('view payments');
         
-        return Inertia::render('Admin/Payments/Index', [
-            'potentialCustomer' => $potentialCustomer,
-            'customer' => null, // Add this line
-            'payments' => $potentialCustomer->payments,
-            'tables' => $tables,
-            'permissions' => $this->getExtendedPermissions('payments'),
-        ]);
-        
-    } catch (\Exception $e) {
-        Log::error('Payment index error: ' . $e->getMessage());
-        return redirect()->back()->with([
-            'message' => 'Failed to load payments.',
-            'type' => 'error'
-        ]);
+        try {
+            $payment = Payment::with(['potentialCustomer', 'customer', 'createdBy'])->findOrFail($paymentId);
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            
+            return Inertia::render('Admin/Payments/Show', [
+                'payment' => $payment,
+                'tables' => $tables,
+                'permissions' => $this->getExtendedPermissions('payments'),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Payment show error: ' . $e->getMessage());
+            return redirect()->back()->with([
+                'message' => 'Failed to load payment details.',
+                'type' => 'error'
+            ]);
+        }
     }
-}
 
-// For regular customers (customerPayments method)
-public function customerPayments($customerId)
-{
-    $this->checkPermission('view payments');
-    
-    try {
-        $customer = $this->getFullCustomer($customerId);
-        $tables = NavigationService::getTablesForUser(auth()->user());
+    /**
+     * Global edit route for payments (without customer context)
+     */
+    public function globalEdit($paymentId)
+    {
+        $this->checkPermission('edit payments');
         
-        return Inertia::render('Admin/Payments/Index', [
-            'potentialCustomer' => null, // Add this line
-            'customer' => $customer,
-            'payments' => $customer->payments,
-            'tables' => $tables,
-            'permissions' => $this->getExtendedPermissions('payments'),
-        ]);
-        
-    } catch (\Exception $e) {
-        Log::error('Customer Payments index error: ' . $e->getMessage());
-        return redirect()->back()->with([
-            'message' => 'Failed to load payments.',
-            'type' => 'error'
-        ]);
+        try {
+            $payment = Payment::with(['potentialCustomer', 'customer', 'createdBy'])->findOrFail($paymentId);
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            
+            // Determine which customer this payment belongs to
+            $customer = null;
+            $customerType = 'global';
+            $customerId = null;
+            
+            if ($payment->customer_id) {
+                $customer = $payment->customer;
+                $customerType = 'customer';
+                $customerId = $payment->customer_id;
+            } elseif ($payment->potential_customer_id) {
+                $customer = $payment->potentialCustomer;
+                $customerType = 'potential';
+                $customerId = $payment->potential_customer_id;
+            }
+            
+            return Inertia::render('Admin/Payments/Edit', [
+                'payment' => $payment,
+                'customer' => $customer,
+                'customerType' => $customerType,
+                'customerId' => $customerId,
+                'tables' => $tables,
+                'permissions' => $this->getExtendedPermissions('payments'),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Payment global edit error: ' . $e->getMessage());
+            return redirect()->back()->with([
+                'message' => 'Failed to load payment edit form.',
+                'type' => 'error'
+            ]);
+        }
     }
-}
+
+    /**
+     * Global update route for payments (without customer context)
+     */
+    public function globalUpdate(Request $request, $paymentId)
+    {
+        $this->checkPermission('edit payments');
+        
+        // Increase timeout
+        set_time_limit(120);
+        
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0',
+            'method' => 'required|string|max:255',
+            'schedule' => 'required|string|max:255',
+            'payment_date' => 'required|date',
+            'reference_number' => 'nullable|string|max:100',
+            'remarks' => 'nullable|string',
+        ]);
+        
+        try {
+            DB::beginTransaction();
+            
+            $payment = Payment::with(['potentialCustomer', 'customer'])->findOrFail($paymentId);
+            
+            $oldAmount = $payment->amount;
+            
+            $payment->update([
+                'amount' => $validated['amount'],
+                'method' => $validated['method'],
+                'schedule' => $validated['schedule'],
+                'payment_date' => $validated['payment_date'],
+                'reference_number' => $validated['reference_number'] ?? null,
+                'remarks' => $validated['remarks'] ?? null,
+            ]);
+            
+            // Recalculate commission for this payment
+            if ($payment->customer_id) {
+                $customer = $payment->customer;
+                $commissionRate = $customer->commission_rate ?? 0;
+                $commissionEarned = ($validated['amount'] * $commissionRate) / 100;
+                
+                $payment->update([
+                    'commission_earned' => $commissionEarned,
+                ]);
+                
+                // Update customer total payment amount
+                $this->updateCustomerTotals($customer);
+                
+                // Redirect back to potential customer if it exists, otherwise to customer
+                if ($payment->potential_customer_id) {
+                    $redirectRoute = route('potential-customers.show', $payment->potential_customer_id);
+                } else {
+                    $redirectRoute = route('customers.show', $payment->customer_id);
+                }
+            } elseif ($payment->potential_customer_id) {
+                $potentialCustomer = $payment->potentialCustomer;
+                
+                // Update the potential customer's total payment amount
+                $totalPaymentAmount = $potentialCustomer->payments()->sum('amount');
+                $potentialCustomer->update([
+                    'payment_amount' => $totalPaymentAmount,
+                ]);
+                
+                // If this was the main payment, update other fields
+                if ($potentialCustomer->payment_amount == $oldAmount) {
+                    $updateData = [
+                        'payment_method' => $validated['method'],
+                        'payment_schedule' => $validated['schedule'],
+                        'payment_date' => $validated['payment_date'],
+                        'payment_remarks' => $validated['remarks'] ?? null,
+                    ];
+                    
+                    // Only add payment_reference if the column exists
+                    if (Schema::hasColumn('potential_customers', 'payment_reference')) {
+                        $updateData['payment_reference'] = $validated['reference_number'] ?? null;
+                    }
+                    
+                    $potentialCustomer->update($updateData);
+                }
+                
+                // Redirect back to potential customer
+                $redirectRoute = route('potential-customers.show', $payment->potential_customer_id);
+            } else {
+                // If no customer context, redirect to payments index
+                $redirectRoute = route('admin.payments.index');
+            }
+            
+            DB::commit();
+            
+            return redirect($redirectRoute)
+                ->with([
+                    'message' => 'Payment updated successfully.',
+                    'type' => 'success'
+                ]);
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Payment global update error: ' . $e->getMessage());
+            return redirect()->back()
+                ->with([
+                    'message' => 'Failed to update payment.',
+                    'type' => 'error'
+                ])
+                ->withInput();
+        }
+    }
+
+    /**
+     * Global destroy route for payments (without customer context)
+     */
+    public function globalDestroy($paymentId)
+    {
+        $this->checkPermission('delete payments');
+        
+        // Increase timeout
+        set_time_limit(120);
+        
+        try {
+            DB::beginTransaction();
+            
+            $payment = Payment::with(['potentialCustomer', 'customer'])->findOrFail($paymentId);
+            
+            Log::info('Attempting to delete payment', [
+                'payment_id' => $payment->id,
+                'amount' => $payment->amount,
+                'customer_id' => $payment->customer_id,
+                'potential_customer_id' => $payment->potential_customer_id,
+                'deleted_by' => auth()->id()
+            ]);
+            
+            // Store payment details before deletion for logging
+            $paymentDetails = [
+                'id' => $payment->id,
+                'amount' => $payment->amount,
+                'customer_id' => $payment->customer_id,
+                'potential_customer_id' => $payment->potential_customer_id,
+                'method' => $payment->method,
+                'payment_date' => $payment->payment_date
+            ];
+            
+            // Determine redirect route - ALWAYS redirect to potential customer if it exists
+            if ($payment->potential_customer_id) {
+                $redirectRoute = route('potential-customers.show', $payment->potential_customer_id);
+                $customerType = 'potential';
+            } elseif ($payment->customer_id) {
+                $redirectRoute = route('customers.show', $payment->customer_id);
+                $customerType = 'customer';
+            } else {
+                $redirectRoute = route('admin.payments.index');
+                $customerType = 'global';
+            }
+            
+            $oldAmount = $payment->amount;
+            
+            // FORCE DELETE the payment (not soft delete)
+            $deleted = $payment->forceDelete();
+            
+            if (!$deleted) {
+                // Try direct DB deletion if forceDelete doesn't work
+                $deleted = DB::table('payments')->where('id', $paymentId)->delete() > 0;
+            }
+            
+            if (!$deleted) {
+                throw new \Exception('Failed to delete payment from database.');
+            }
+            
+            Log::info('Payment deleted from database', $paymentDetails);
+            
+            // Update customer totals if applicable
+            if ($customerType === 'customer' && $paymentDetails['customer_id']) {
+                $customer = Customer::find($paymentDetails['customer_id']);
+                if ($customer) {
+                    $this->updateCustomerTotals($customer);
+                    Log::info('Customer totals updated after payment deletion', [
+                        'customer_id' => $customer->id,
+                        'deleted_payment_amount' => $oldAmount
+                    ]);
+                }
+            } elseif ($customerType === 'potential' && $paymentDetails['potential_customer_id']) {
+                $potentialCustomer = PotentialCustomer::find($paymentDetails['potential_customer_id']);
+                
+                if ($potentialCustomer) {
+                    // Update potential customer's total payment amount
+                    $totalPaymentAmount = $potentialCustomer->payments()->sum('amount');
+                    $potentialCustomer->update([
+                        'payment_amount' => $totalPaymentAmount,
+                    ]);
+                    
+                    // If this was the main payment and no payments left, clear fields
+                    if ($potentialCustomer->payment_amount == 0) {
+                        $updateData = [
+                            'payment_method' => null,
+                            'payment_schedule' => null,
+                            'payment_date' => null,
+                            'payment_remarks' => null,
+                        ];
+                        
+                        // Only clear payment_reference if the column exists
+                        if (Schema::hasColumn('potential_customers', 'payment_reference')) {
+                            $updateData['payment_reference'] = null;
+                        }
+                        
+                        $potentialCustomer->update($updateData);
+                    }
+                    
+                    Log::info('Potential customer updated after payment deletion', [
+                        'potential_customer_id' => $potentialCustomer->id,
+                        'new_payment_amount' => $totalPaymentAmount
+                    ]);
+                }
+            }
+            
+            DB::commit();
+            
+            Log::info('Payment deletion completed successfully', [
+                'payment_id' => $paymentId,
+                'redirect_route' => $redirectRoute
+            ]);
+            
+            return redirect($redirectRoute)
+                ->with([
+                    'message' => 'Payment deleted successfully.',
+                    'type' => 'success'
+                ]);
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Payment global delete error: ' . $e->getMessage(), [
+                'payment_id' => $paymentId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with([
+                'message' => 'Failed to delete payment: ' . $e->getMessage(),
+                'type' => 'error'
+            ]);
+        }
+    }
+
+    // For potential customers (index method)
+    public function index($customerId)
+    {
+        $this->checkPermission('view payments');
+        
+        try {
+            $potentialCustomer = $this->getFullPotentialCustomer($customerId);
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            
+            // Calculate total payment amount
+            $totalPaymentAmount = $potentialCustomer->payments->sum('amount');
+            
+            return Inertia::render('Admin/Payments/Index', [
+                'potentialCustomer' => $potentialCustomer,
+                'customer' => null,
+                'payments' => $potentialCustomer->payments,
+                'total_payment_amount' => $totalPaymentAmount,
+                'tables' => $tables,
+                'permissions' => $this->getExtendedPermissions('payments'),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Payment index error: ' . $e->getMessage());
+            return redirect()->back()->with([
+                'message' => 'Failed to load payments.',
+                'type' => 'error'
+            ]);
+        }
+    }
+
+    // For regular customers (customerPayments method)
+    public function customerPayments($customerId)
+    {
+        $this->checkPermission('view payments');
+        
+        try {
+            $customer = $this->getFullCustomer($customerId);
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            
+            return Inertia::render('Admin/Payments/Index', [
+                'potentialCustomer' => null,
+                'customer' => $customer,
+                'payments' => $customer->payments,
+                'tables' => $tables,
+                'permissions' => $this->getExtendedPermissions('payments'),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Customer Payments index error: ' . $e->getMessage());
+            return redirect()->back()->with([
+                'message' => 'Failed to load payments.',
+                'type' => 'error'
+            ]);
+        }
+    }
+
     public function create($customerId)
     {
         $this->checkPermission('create payments');
@@ -148,6 +460,7 @@ public function customerPayments($customerId)
         }
     }
 
+    // MAIN FIX: Updated store method to update total_payment_amount instead of paid_amount
     public function store(Request $request, $customerId)
     {
         $this->checkPermission('create payments');
@@ -265,21 +578,33 @@ public function customerPayments($customerId)
                     'is_approved_customer' => $isCustomerApproved
                 ]);
                 
-                // If this is the first payment, update potential customer's main payment fields
-                if (!$potentialCustomer->payment_amount) {
-                    $updateData = [
-                        'payment_amount' => $validated['amount'],
-                        'payment_method' => $validated['method'],
-                        'payment_schedule' => $validated['schedule'],
-                        'payment_date' => $validated['payment_date'],
-                        'payment_remarks' => $validated['remarks'] ?? null,
-                    ];
-                    
-                    // Only add payment_reference if the column exists
-                    if (Schema::hasColumn('potential_customers', 'payment_reference')) {
-                        $updateData['payment_reference'] = $validated['reference_number'] ?? null;
-                    }
-                    
+                // FIX: Update potential customer's total payment amount field
+                $updateData = [];
+                
+                // Update total payment amount (sum of all payments)
+                $totalPaymentAmount = $potentialCustomer->payments()->sum('amount') + $payment->amount;
+                $updateData['payment_amount'] = $totalPaymentAmount;
+                
+                // Only update main payment fields if this is the first payment
+                if (!$potentialCustomer->payment_method) {
+                    $updateData['payment_method'] = $validated['method'];
+                }
+                if (!$potentialCustomer->payment_schedule) {
+                    $updateData['payment_schedule'] = $validated['schedule'];
+                }
+                if (!$potentialCustomer->payment_date) {
+                    $updateData['payment_date'] = $validated['payment_date'];
+                }
+                if (!$potentialCustomer->payment_remarks) {
+                    $updateData['payment_remarks'] = $validated['remarks'] ?? null;
+                }
+                
+                // Only add payment_reference if the column exists
+                if (Schema::hasColumn('potential_customers', 'payment_reference') && !$potentialCustomer->payment_reference) {
+                    $updateData['payment_reference'] = $validated['reference_number'] ?? null;
+                }
+                
+                if (!empty($updateData)) {
                     $potentialCustomer->update($updateData);
                 }
                 
@@ -287,13 +612,38 @@ public function customerPayments($customerId)
                 if ($payment->customer_id) {
                     $customer = Customer::find($payment->customer_id);
                     if ($customer) {
-                        $this->updateCustomerTotals($customer);
+                        // MAIN FIX: Update total_payment_amount instead of paid_amount for new payments
+                        $newTotalAmount = $customer->total_payment_amount + $payment->amount;
+                        
+                        // Update payment status based on paid amount vs total amount
+                        $paymentStatus = 'not_paid';
+                        if ($newTotalAmount > 0) {
+                            // Check if there are existing paid amounts
+                            if ($customer->paid_amount >= $newTotalAmount) {
+                                $paymentStatus = 'paid';
+                            } elseif ($customer->paid_amount >= ($newTotalAmount * 0.5)) {
+                                $paymentStatus = 'half_paid';
+                            } elseif ($customer->paid_amount > 0) {
+                                $paymentStatus = 'pending';
+                            }
+                        }
+                        
+                        $customer->update([
+                            'total_payment_amount' => $newTotalAmount,
+                            'payment_status' => $paymentStatus,
+                        ]);
+                        
+                        Log::info('Customer payment totals updated', [
+                            'customer_id' => $customer->id,
+                            'new_total_amount' => $newTotalAmount,
+                            'payment_status' => $paymentStatus
+                        ]);
                     }
                 }
                 
                 DB::commit();
                 
-                // Redirect back to the potential customer page
+                // FIX: Redirect back to the potential customer page
                 return redirect()->route('potential-customers.show', $customerId)
                     ->with([
                         'message' => 'Payment created successfully.' . 
@@ -346,8 +696,53 @@ public function customerPayments($customerId)
                     'customer_id' => $customer->id
                 ]);
                 
-                // Update customer totals with timeout protection
-                $this->updateCustomerTotals($customer);
+                // FIX: Update customer total payment amount
+                $newTotalAmount = $customer->total_payment_amount + $payment->amount;
+                
+                // Update payment status based on paid amount vs total amount
+                $paymentStatus = 'not_paid';
+                if ($newTotalAmount > 0) {
+                    if ($customer->paid_amount >= $newTotalAmount) {
+                        $paymentStatus = 'paid';
+                    } elseif ($customer->paid_amount >= ($newTotalAmount * 0.5)) {
+                        $paymentStatus = 'half_paid';
+                    } elseif ($customer->paid_amount > 0) {
+                        $paymentStatus = 'pending';
+                    }
+                }
+                
+                $customer->update([
+                    'total_payment_amount' => $newTotalAmount,
+                    'payment_status' => $paymentStatus,
+                ]);
+                
+                // Update commission if needed
+                if ($customer->commission_rate > 0) {
+                    $commissionAmount = ($newTotalAmount * $customer->commission_rate) / 100;
+                    
+                    // Calculate commission status
+                    $commissionStatus = 'not_applicable';
+                    if ($commissionAmount > 0) {
+                        if ($customer->paid_commission >= $commissionAmount) {
+                            $commissionStatus = 'paid';
+                        } elseif ($customer->paid_commission > 0) {
+                            $commissionStatus = 'pending';
+                        } else {
+                            $commissionStatus = 'not_paid';
+                        }
+                    }
+                    
+                    $customer->update([
+                        'commission_amount' => $commissionAmount,
+                        'commission_status' => $commissionStatus,
+                    ]);
+                }
+                
+                Log::info('Customer updated after payment', [
+                    'customer_id' => $customer->id,
+                    'new_total_amount' => $newTotalAmount,
+                    'payment_status' => $paymentStatus
+                ]);
                 
                 DB::commit();
                 
@@ -393,6 +788,7 @@ public function customerPayments($customerId)
                 'payment' => $payment,
                 'customer' => $customer,
                 'customerType' => $customerType,
+                'customerId' => $customerId,
                 'tables' => $tables,
                 'permissions' => $this->getExtendedPermissions('payments'),
             ]);
@@ -449,20 +845,24 @@ public function customerPayments($customerId)
                 $payment->update([
                     'commission_earned' => $commissionEarned,
                 ]);
-            }
-            
-            // Update customer payment totals if this is a customer payment
-            if ($payment->customer_id) {
-                $customer = $payment->customer;
+                
+                // Update customer total payment amount
                 $this->updateCustomerTotals($customer);
             }
             
-            // Update main payment fields if this is a potential customer's main payment
-            if ($payment->potential_customer_id && !$payment->customer_id) {
+            // Update main payment fields if this is a potential customer's payment
+            if ($payment->potential_customer_id) {
                 $potentialCustomer = $payment->potentialCustomer;
+                
+                // Update the potential customer's total payment amount
+                $totalPaymentAmount = $potentialCustomer->payments()->sum('amount');
+                $potentialCustomer->update([
+                    'payment_amount' => $totalPaymentAmount,
+                ]);
+                
+                // If this was the main payment, update other fields
                 if ($potentialCustomer->payment_amount == $oldAmount) {
                     $updateData = [
-                        'payment_amount' => $validated['amount'],
                         'payment_method' => $validated['method'],
                         'payment_schedule' => $validated['schedule'],
                         'payment_date' => $validated['payment_date'],
@@ -480,15 +880,20 @@ public function customerPayments($customerId)
             
             DB::commit();
             
-            // Redirect based on customer type
-            if ($customerType === 'potential') {
-                return redirect()->route('potential-customers.payments.index', $customerId)
+            // FIX: ALWAYS redirect to potential-customers.show when coming from potential customer context
+            // Check if the request came from a potential customer route
+            $isFromPotentialCustomer = $request->has('customer_type') && $request->customer_type === 'potential';
+            
+            if ($isFromPotentialCustomer || $payment->potential_customer_id) {
+                // Use the potential_customer_id from the payment if available, otherwise use the customerId from the request
+                $redirectId = $payment->potential_customer_id ?? $customerId;
+                return redirect()->route('potential-customers.show', $redirectId)
                     ->with([
                         'message' => 'Payment updated successfully.',
                         'type' => 'success'
                     ]);
             } else {
-                return redirect()->route('customers.payments', $customerId)
+                return redirect()->route('customers.show', $customerId)
                     ->with([
                         'message' => 'Payment updated successfully.',
                         'type' => 'success'
@@ -517,52 +922,116 @@ public function customerPayments($customerId)
         try {
             DB::beginTransaction();
             
-            $payment = Payment::findOrFail($paymentId);
-            $customerType = $payment->customer_id ? 'customer' : 'potential';
-            $customer = $customerType === 'potential' ? $payment->potentialCustomer : $payment->customer;
+            $payment = Payment::with(['potentialCustomer', 'customer'])->findOrFail($paymentId);
             
-            if ($customerType === 'potential') {
-                // Check if this is the main payment
-                $isMainPayment = $customer->payment_amount == $payment->amount;
-                
-                $payment->delete();
-                
-                // If this was the main payment, clear the main payment fields
-                if ($isMainPayment) {
-                    $updateData = [
-                        'payment_amount' => null,
-                        'payment_method' => null,
-                        'payment_schedule' => null,
-                        'payment_date' => null,
-                        'payment_remarks' => null,
-                    ];
-                    
-                    // Only clear payment_reference if the column exists
-                    if (Schema::hasColumn('potential_customers', 'payment_reference')) {
-                        $updateData['payment_reference'] = null;
-                    }
-                    
-                    $customer->update($updateData);
-                }
+            Log::info('Attempting to delete payment (with customer context)', [
+                'payment_id' => $payment->id,
+                'request_customer_id' => $customerId,
+                'payment_amount' => $payment->amount,
+                'payment_customer_id' => $payment->customer_id,
+                'payment_potential_customer_id' => $payment->potential_customer_id
+            ]);
+            
+            // FIX: ALWAYS check if we should redirect to potential customer
+            // Priority: 1. Payment has potential_customer_id, 2. Request came from potential customer context
+            
+            // Check if the request came from a potential customer page
+            $isPotentialCustomerRequest = PotentialCustomer::find($customerId) !== null;
+            
+            // Determine redirect ID
+            $redirectId = null;
+            $redirectToPotential = false;
+            
+            if ($payment->potential_customer_id) {
+                // Payment has a potential customer ID, always redirect there
+                $redirectId = $payment->potential_customer_id;
+                $redirectToPotential = true;
+                Log::info('Payment has potential_customer_id, redirecting to potential customer', [
+                    'potential_customer_id' => $redirectId
+                ]);
+            } elseif ($isPotentialCustomerRequest) {
+                // Request came from potential customer page
+                $redirectId = $customerId;
+                $redirectToPotential = true;
+                Log::info('Request came from potential customer, redirecting to potential customer', [
+                    'potential_customer_id' => $redirectId
+                ]);
             } else {
-                // For customer payments
-                $payment->delete();
-                
-                // Update customer totals with timeout protection
-                $this->updateCustomerTotals($customer);
+                // Default to customer
+                $redirectId = $customerId;
+                $redirectToPotential = false;
+                Log::info('Redirecting to customer', ['customer_id' => $redirectId]);
+            }
+            
+            // Store payment details before deletion
+            $paymentDetails = [
+                'id' => $payment->id,
+                'amount' => $payment->amount
+            ];
+            
+            // FORCE DELETE the payment
+            $deleted = $payment->forceDelete();
+            
+            if (!$deleted) {
+                // Try direct DB deletion if forceDelete doesn't work
+                $deleted = DB::table('payments')
+                    ->where('id', $paymentId)
+                    ->delete() > 0;
+            }
+            
+            if (!$deleted) {
+                throw new \Exception('Failed to delete payment from database.');
+            }
+            
+            Log::info('Payment deleted from database (with customer context)', $paymentDetails);
+            
+            if ($payment->customer_id) {
+                // Update customer totals if payment was linked to a customer
+                $customer = Customer::find($payment->customer_id);
+                if ($customer) {
+                    $this->updateCustomerTotals($customer);
+                }
+            }
+            
+            if ($payment->potential_customer_id) {
+                // Update potential customer's total payment amount
+                $potentialCustomer = PotentialCustomer::find($payment->potential_customer_id);
+                if ($potentialCustomer) {
+                    $totalPaymentAmount = $potentialCustomer->payments()->sum('amount');
+                    $potentialCustomer->update([
+                        'payment_amount' => $totalPaymentAmount,
+                    ]);
+                    
+                    // If this was the main payment and no payments left, clear fields
+                    if ($potentialCustomer->payment_amount == 0) {
+                        $updateData = [
+                            'payment_method' => null,
+                            'payment_schedule' => null,
+                            'payment_date' => null,
+                            'payment_remarks' => null,
+                        ];
+                        
+                        // Only clear payment_reference if the column exists
+                        if (Schema::hasColumn('potential_customers', 'payment_reference')) {
+                            $updateData['payment_reference'] = null;
+                        }
+                        
+                        $potentialCustomer->update($updateData);
+                    }
+                }
             }
             
             DB::commit();
             
-            // Redirect based on customer type
-            if ($customerType === 'potential') {
-                return redirect()->route('potential-customers.payments.index', $customerId)
+            // FIX: ALWAYS redirect to potential customer when appropriate
+            if ($redirectToPotential) {
+                return redirect()->route('potential-customers.show', $redirectId)
                     ->with([
                         'message' => 'Payment deleted successfully.',
                         'type' => 'success'
                     ]);
             } else {
-                return redirect()->route('customers.payments', $customerId)
+                return redirect()->route('customers.show', $redirectId)
                     ->with([
                         'message' => 'Payment deleted successfully.',
                         'type' => 'success'
@@ -571,9 +1040,12 @@ public function customerPayments($customerId)
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Payment delete error: ' . $e->getMessage());
+            Log::error('Payment delete error: ' . $e->getMessage(), [
+                'payment_id' => $paymentId,
+                'trace' => $e->getTraceAsString()
+            ]);
             return redirect()->back()->with([
-                'message' => 'Failed to delete payment.',
+                'message' => 'Failed to delete payment: ' . $e->getMessage(),
                 'type' => 'error'
             ]);
         }
@@ -591,9 +1063,15 @@ public function customerPayments($customerId)
         
         try {
             // Use direct queries to avoid Eloquent events
-            $totalPaid = DB::table('payments')
+            $totalPaymentAmount = DB::table('payments')
                 ->where('customer_id', $customer->id)
                 ->where('is_active', true)
+                ->sum('amount');
+            
+            $paidAmount = DB::table('payments')
+                ->where('customer_id', $customer->id)
+                ->where('is_active', true)
+                ->where('payment_date', '<=', now())
                 ->sum('amount');
             
             $totalCommission = DB::table('payments')
@@ -609,7 +1087,8 @@ public function customerPayments($customerId)
             
             Log::info('Calculated totals', [
                 'customer_id' => $customer->id,
-                'total_paid' => $totalPaid,
+                'total_payment_amount' => $totalPaymentAmount,
+                'paid_amount' => $paidAmount,
                 'total_commission' => $totalCommission,
                 'paid_commission' => $paidCommission
             ]);
@@ -617,14 +1096,25 @@ public function customerPayments($customerId)
             // Get current totals to avoid unnecessary updates
             $currentTotals = DB::table('customers')
                 ->where('id', $customer->id)
-                ->select('paid_amount', 'commission_amount', 'paid_commission', 'total_payment_amount')
+                ->select('total_payment_amount', 'paid_amount', 'remaining_amount', 
+                         'commission_amount', 'paid_commission', 'payment_status', 'commission_status')
                 ->first();
             
             // Only update if values have changed
             $updateData = [];
             
-            if (abs(($currentTotals->paid_amount ?? 0) - $totalPaid) > 0.01) {
-                $updateData['paid_amount'] = $totalPaid;
+            if (abs(($currentTotals->total_payment_amount ?? 0) - $totalPaymentAmount) > 0.01) {
+                $updateData['total_payment_amount'] = $totalPaymentAmount;
+            }
+            
+            if (abs(($currentTotals->paid_amount ?? 0) - $paidAmount) > 0.01) {
+                $updateData['paid_amount'] = $paidAmount;
+            }
+            
+            // Calculate remaining amount
+            $remainingAmount = max(0, $totalPaymentAmount - $paidAmount);
+            if (abs(($currentTotals->remaining_amount ?? 0) - $remainingAmount) > 0.01) {
+                $updateData['remaining_amount'] = $remainingAmount;
             }
             
             if (abs(($currentTotals->commission_amount ?? 0) - $totalCommission) > 0.01) {
@@ -635,21 +1125,15 @@ public function customerPayments($customerId)
                 $updateData['paid_commission'] = $paidCommission;
             }
             
-            // Calculate remaining amount
-            $remainingAmount = max(0, ($currentTotals->total_payment_amount ?? 0) - $totalPaid);
-            if (abs(($customer->remaining_amount ?? 0) - $remainingAmount) > 0.01) {
-                $updateData['remaining_amount'] = $remainingAmount;
-            }
-            
-            // Calculate payment status
-            $paymentStatus = $this->calculatePaymentStatus($totalPaid, $currentTotals->total_payment_amount ?? 0);
-            if ($paymentStatus !== $customer->payment_status) {
+            // Calculate payment status based on paid amount vs total amount
+            $paymentStatus = $this->calculatePaymentStatus($paidAmount, $totalPaymentAmount);
+            if ($paymentStatus !== ($currentTotals->payment_status ?? 'not_paid')) {
                 $updateData['payment_status'] = $paymentStatus;
             }
             
             // Calculate commission status
             $commissionStatus = $this->calculateCommissionStatus($paidCommission, $totalCommission);
-            if ($commissionStatus !== $customer->commission_status) {
+            if ($commissionStatus !== ($currentTotals->commission_status ?? 'not_applicable')) {
                 $updateData['commission_status'] = $commissionStatus;
             }
             
@@ -678,6 +1162,7 @@ public function customerPayments($customerId)
             throw $e;
         }
     }
+        
     
     /**
      * Calculate payment status based on paid amount vs total amount
@@ -696,7 +1181,7 @@ public function customerPayments($customerId)
      */
     private function calculateCommissionStatus($paidCommission, $totalCommission): string
     {
-        if ($totalCommission <= 0) return 'not_paid';
+        if ($totalCommission <= 0) return 'not_applicable';
         if ($paidCommission >= $totalCommission) return 'paid';
         if ($paidCommission > 0) return 'pending';
         return 'not_paid';
@@ -797,6 +1282,7 @@ public function customerPayments($customerId)
             
             $syncedCount = 0;
             $skippedCount = 0;
+            $totalAmount = 0;
             
             foreach ($potentialCustomer->payments as $payment) {
                 // Check if payment already exists for customer with same details
@@ -826,10 +1312,18 @@ public function customerPayments($customerId)
                         'commission_paid_status' => $payment->commission_paid_status,
                     ]);
                     
+                    $totalAmount += $payment->amount;
                     $syncedCount++;
                 } else {
                     $skippedCount++;
                 }
+            }
+            
+            // Update customer's total payment amount
+            if ($syncedCount > 0) {
+                $customer->update([
+                    'total_payment_amount' => $customer->total_payment_amount + $totalAmount
+                ]);
             }
             
             // Update customer totals
@@ -847,6 +1341,121 @@ public function customerPayments($customerId)
             DB::rollBack();
             Log::error('Sync payments error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to sync payments: ' . $e->getMessage());
+        }
+    }
+    
+    // Additional global payment methods
+    
+    public function recent()
+    {
+        $this->checkPermission('view payments');
+        
+        try {
+            $payments = Payment::with(['potentialCustomer', 'customer', 'createdBy'])
+                ->where('payment_date', '>=', now()->subDays(30))
+                ->orderBy('payment_date', 'desc')
+                ->get();
+            
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            
+            return Inertia::render('Admin/Payments/Recent', [
+                'payments' => $payments,
+                'tables' => $tables,
+                'permissions' => $this->getExtendedPermissions('payments'),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Recent payments error: ' . $e->getMessage());
+            return redirect()->back()->with([
+                'message' => 'Failed to load recent payments.',
+                'type' => 'error'
+            ]);
+        }
+    }
+    
+    public function upcoming()
+    {
+        $this->checkPermission('view payments');
+        
+        try {
+            $payments = Payment::with(['potentialCustomer', 'customer', 'createdBy'])
+                ->where('payment_date', '>=', now())
+                ->where('payment_date', '<=', now()->addDays(30))
+                ->orderBy('payment_date', 'asc')
+                ->get();
+            
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            
+            return Inertia::render('Admin/Payments/Upcoming', [
+                'payments' => $payments,
+                'tables' => $tables,
+                'permissions' => $this->getExtendedPermissions('payments'),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Upcoming payments error: ' . $e->getMessage());
+            return redirect()->back()->with([
+                'message' => 'Failed to load upcoming payments.',
+                'type' => 'error'
+            ]);
+        }
+    }
+    
+    public function overdue()
+    {
+        $this->checkPermission('view payments');
+        
+        try {
+            $payments = Payment::with(['potentialCustomer', 'customer', 'createdBy'])
+                ->where('payment_date', '<', now())
+                ->orderBy('payment_date', 'desc')
+                ->get();
+            
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            
+            return Inertia::render('Admin/Payments/Overdue', [
+                'payments' => $payments,
+                'tables' => $tables,
+                'permissions' => $this->getExtendedPermissions('payments'),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Overdue payments error: ' . $e->getMessage());
+            return redirect()->back()->with([
+                'message' => 'Failed to load overdue payments.',
+                'type' => 'error'
+            ]);
+        }
+    }
+    
+    public function summary()
+    {
+        $this->checkPermission('view payments');
+        
+        try {
+            $totalPayments = Payment::count();
+            $totalAmount = Payment::sum('amount');
+            $recentPayments = Payment::with(['potentialCustomer', 'customer'])
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get();
+            
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            
+            return Inertia::render('Admin/Payments/Summary', [
+                'totalPayments' => $totalPayments,
+                'totalAmount' => $totalAmount,
+                'recentPayments' => $recentPayments,
+                'tables' => $tables,
+                'permissions' => $this->getExtendedPermissions('payments'),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Payments summary error: ' . $e->getMessage());
+            return redirect()->back()->with([
+                'message' => 'Failed to load payments summary.',
+                'type' => 'error'
+            ]);
         }
     }
 }

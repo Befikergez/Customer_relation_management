@@ -77,19 +77,6 @@
       <!-- Content -->
       <div class="flex-1 p-4 lg:p-6">
         <div class="max-w-7xl mx-auto">
-          <!-- Debug Section -->
-          <div v-if="showDebug" class="mb-6 p-4 bg-gray-800 text-white rounded-lg">
-            <div class="flex justify-between items-center mb-2">
-              <h3 class="font-bold">Inertia Data Debug</h3>
-              <button @click="showDebug = !showDebug" class="text-sm bg-gray-700 px-2 py-1 rounded">
-                {{ showDebug ? 'Hide' : 'Show' }}
-              </button>
-            </div>
-            <div class="text-sm font-mono overflow-auto max-h-64">
-              <pre>{{ debugData }}</pre>
-            </div>
-          </div>
-
           <!-- Flash Messages -->
           <div v-if="flashMessage" class="mb-6">
             <div :class="flashMessageClass" class="rounded-lg p-4 shadow-sm border">
@@ -229,7 +216,7 @@
                     <span v-else>Reject Customer</span>
                   </button>
 
-                  <!-- View All Payments Button - ONLY SHOW WHEN CUSTOMER IS APPROVED -->
+                  <!-- View All Payments Button -->
                   <button 
                     v-if="hasPermission('view') && potentialCustomer.status === 'accepted'"
                     type="button"
@@ -326,7 +313,7 @@
               </div>
             </div>
             
-            <!-- Payments Table - FILTER OUT DUPLICATE PAYMENTS -->
+            <!-- Payments Table -->
             <div class="overflow-x-auto">
               <table class="w-full">
                 <thead class="bg-gray-50">
@@ -388,7 +375,7 @@
               </table>
             </div>
             
-            <!-- View All Payments Link - ONLY SHOW WHEN CUSTOMER IS APPROVED -->
+            <!-- View All Payments Link -->
             <div v-if="potentialCustomer.payments.length > 3 && potentialCustomer.status === 'accepted'" class="mt-4 pt-4 border-t border-gray-200 text-center">
               <button 
                 type="button"
@@ -789,8 +776,10 @@
           </button>
         </div>
         
-        <!-- FIXED: Form with proper submit prevention -->
         <form @submit.prevent="handlePaymentSubmit" class="space-y-4" ref="paymentFormRef">
+          <!-- Add hidden CSRF token field -->
+          <input type="hidden" name="_token" :value="csrfToken">
+          
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Amount ($) *</label>
@@ -853,17 +842,6 @@
                 :disabled="paymentForm.processing"
               />
             </div>
-
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Reference Number</label>
-              <input
-                type="text"
-                v-model="paymentForm.reference_number"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="Optional reference number"
-                :disabled="paymentForm.processing"
-              />
-            </div>
           </div>
 
           <div>
@@ -913,6 +891,9 @@
           </div>
         </div>
         
+        <!-- Add hidden CSRF token field -->
+        <input type="hidden" name="_token" :value="csrfToken">
+        
         <textarea 
           v-model="rejectForm.reason"
           placeholder="Enter reason for rejecting this customer..."
@@ -944,8 +925,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import { router, useForm } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import {
   ArrowLeftIcon,
@@ -993,7 +974,28 @@ const props = defineProps({
   flash: {
     type: Object,
     default: () => ({})
+  },
+  csrf_token: {
+    type: String,
+    default: ''
   }
+})
+
+// Reactive state for potentialCustomer so we can update it
+const potentialCustomer = ref(props.potentialCustomer)
+
+// Watch for props changes
+watch(() => props.potentialCustomer, (newVal) => {
+  potentialCustomer.value = newVal
+}, { deep: true })
+
+// CSRF token
+const csrfToken = computed(() => {
+  if (typeof document !== 'undefined') {
+    const metaTag = document.querySelector('meta[name="csrf-token"]')
+    return metaTag ? metaTag.getAttribute('content') : props.csrf_token
+  }
+  return props.csrf_token
 })
 
 // Modal states
@@ -1010,40 +1012,18 @@ const rejectLoading = ref(false)
 const paymentFormRef = ref(null)
 const submitButtonRef = ref(null)
 
-// Debug state
-const showDebug = ref(false)
-
 // Submission tracking
 const isSubmitting = ref(false)
-const submissionId = ref(null)
 
 // Flash message state
 const flashMessage = ref(props.flash?.message || '')
 const flashMessageType = ref(props.flash?.type || 'success')
 
-// Forms
-const rejectForm = reactive({
-  reason: ''
-})
+// Delete loading state
+const deleteLoading = ref(false)
 
-const proposalForm = reactive({
-  title: '',
-  description: '',
-  price: '',
-  processing: false
-})
-
-const paymentForm = reactive({
-  amount: '',
-  method: '',
-  schedule: '',
-  payment_date: new Date().toISOString().split('T')[0],
-  reference_number: '',
-  remarks: '',
-  processing: false
-})
-
-const editForm = reactive({
+// Use Inertia forms for better CSRF handling
+const editForm = useForm({
   potential_customer_name: '',
   email: '',
   phone: '',
@@ -1052,10 +1032,29 @@ const editForm = reactive({
   status: 'draft',
   city_id: '',
   subcity_id: '',
-  processing: false
+  _method: 'PUT' // Important for Laravel to recognize PUT requests
 })
 
-// Computed
+const proposalForm = useForm({
+  title: '',
+  description: '',
+  price: ''
+})
+
+const paymentForm = useForm({
+  amount: '',
+  method: '',
+  schedule: '',
+  payment_date: new Date().toISOString().split('T')[0],
+  remarks: ''
+})
+
+const rejectForm = useForm({
+  reason: '',
+  _method: 'POST'
+})
+
+// Computed properties
 const availableSubcities = computed(() => {
   if (!editForm.city_id) return []
   return props.subcities.filter(sub => sub.city_id == editForm.city_id)
@@ -1067,40 +1066,12 @@ const flashMessageClass = computed(() => {
     : 'bg-red-50 border-red-200 text-red-800'
 })
 
-// Filter out duplicate payments - only show synced ones
+// FIXED: Simplified filteredPayments - show only first 3 payments without complex filtering
 const filteredPayments = computed(() => {
-  if (!props.potentialCustomer.payments || !Array.isArray(props.potentialCustomer.payments)) return []
+  if (!potentialCustomer.value.payments || !Array.isArray(potentialCustomer.value.payments)) return []
   
-  // Filter to only show payments that are properly synced with the customer
-  // Look for payments that have the potential_customer_id set
-  const uniquePayments = []
-  const seenIds = new Set()
-  
-  props.potentialCustomer.payments.forEach(payment => {
-    // Only include payments that are synced with this customer
-    if (payment.potential_customer_id === props.potentialCustomer.id) {
-      if (!seenIds.has(payment.id)) {
-        seenIds.add(payment.id)
-        uniquePayments.push(payment)
-      }
-    }
-  })
-  
-  // If no synced payments found, show all but limit to avoid duplicates
-  if (uniquePayments.length === 0) {
-    // Fallback: show first 3 unique payments based on amount, method, and date
-    const seenCombos = new Set()
-    return props.potentialCustomer.payments.filter(payment => {
-      const combo = `${payment.amount}-${payment.method}-${payment.payment_date}`
-      if (!seenCombos.has(combo)) {
-        seenCombos.add(combo)
-        return true
-      }
-      return false
-    }).slice(0, 3)
-  }
-  
-  return uniquePayments.slice(0, 3)
+  // Simply return the first 3 payments
+  return potentialCustomer.value.payments.slice(0, 3)
 })
 
 const totalPaymentAmount = computed(() => {
@@ -1108,28 +1079,6 @@ const totalPaymentAmount = computed(() => {
     const amount = parseFloat(payment.amount) || 0
     return sum + amount
   }, 0)
-})
-
-// Debug data
-const debugData = computed(() => {
-  return {
-    potentialCustomer: {
-      id: props.potentialCustomer?.id,
-      name: props.potentialCustomer?.potential_customer_name,
-      paymentsCount: props.potentialCustomer?.payments?.length || 0,
-      filteredPaymentsCount: filteredPayments.value.length,
-      payments: props.potentialCustomer?.payments || [],
-      filteredPayments: filteredPayments.value,
-      paymentsArray: Array.isArray(props.potentialCustomer?.payments) ? 'Yes' : 'No',
-      paymentsType: typeof props.potentialCustomer?.payments,
-      status: props.potentialCustomer?.status
-    },
-    permissions: props.permissions,
-    hasPaymentsPermission: hasPermission('view'),
-    totalPaymentAmount: totalPaymentAmount.value,
-    flashMessage: flashMessage.value,
-    flashMessageType: flashMessageType.value
-  }
 })
 
 // Helper function to safely check permissions
@@ -1249,15 +1198,30 @@ const clearFlashMessage = () => {
 const showFlashMessage = (msg, type = 'success') => {
   flashMessage.value = msg
   flashMessageType.value = type
+  
+  setTimeout(() => {
+    clearFlashMessage()
+  }, 5000)
 }
 
 // Actions
-const goBack = () => router.get('/admin/potential-customers')
+const goBack = () => {
+  router.get('/admin/potential-customers')
+}
 
 // Modals
 const openEditModal = () => {
-  if (!props.potentialCustomer) return
-  Object.assign(editForm, props.potentialCustomer)
+  if (!potentialCustomer.value) return
+  
+  editForm.potential_customer_name = potentialCustomer.value.potential_customer_name || ''
+  editForm.email = potentialCustomer.value.email || ''
+  editForm.phone = potentialCustomer.value.phone || ''
+  editForm.location = potentialCustomer.value.location || ''
+  editForm.remarks = potentialCustomer.value.remarks || ''
+  editForm.status = potentialCustomer.value.status || 'draft'
+  editForm.city_id = potentialCustomer.value.city_id || ''
+  editForm.subcity_id = potentialCustomer.value.subcity_id || ''
+  
   showEditModal.value = true
 }
 const closeEditModal = () => (showEditModal.value = false)
@@ -1271,26 +1235,19 @@ const openCreateProposalModal = () => {
 const closeCreateProposalModal = () => (showCreateProposalModal.value = false)
 
 const openCreatePaymentModal = () => {
-  // Reset form state
   paymentForm.amount = ''
   paymentForm.method = ''
   paymentForm.schedule = ''
   paymentForm.payment_date = new Date().toISOString().split('T')[0]
-  paymentForm.reference_number = ''
   paymentForm.remarks = ''
-  paymentForm.processing = false
   
-  // Reset submission tracking
   isSubmitting.value = false
-  submissionId.value = Date.now() // Generate unique submission ID
   
   showCreatePaymentModal.value = true
 }
 
 const closeCreatePaymentModal = () => {
-  // Prevent closing if processing
   if (paymentForm.processing) {
-    console.log('DEBUG: Cannot close modal while processing payment')
     return
   }
   showCreatePaymentModal.value = false
@@ -1307,59 +1264,57 @@ const closeRejectModal = () => {
 
 // Submissions
 const submitEdit = () => {
-  editForm.processing = true
-  router.put(
-    `/admin/potential-customers/${props.potentialCustomer.id}`,
-    editForm,
-    {
-      preserveScroll: true,
-      onError: () => (editForm.processing = false),
-      onSuccess: closeEditModal
+  editForm.put(`/admin/potential-customers/${potentialCustomer.value.id}`, {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: (page) => {
+      closeEditModal()
+      showFlashMessage('Customer updated successfully!', 'success')
+      
+      if (page.props.potentialCustomer) {
+        potentialCustomer.value = page.props.potentialCustomer
+      }
+    },
+    onError: (errors) => {
+      showFlashMessage('Failed to update customer.', 'error')
     }
-  )
+  })
 }
 
 const submitProposal = () => {
-  proposalForm.processing = true
-  router.post(
-    `/admin/potential-customers/${props.potentialCustomer.id}/create-proposal`,
-    proposalForm,
-    {
-      preserveScroll: true,
-      onError: () => (proposalForm.processing = false),
-      onSuccess: closeCreateProposalModal
+  proposalForm.post(`/admin/potential-customers/${potentialCustomer.value.id}/create-proposal`, {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: (page) => {
+      closeCreateProposalModal()
+      showFlashMessage('Proposal created successfully!', 'success')
+      
+      if (page.props.potentialCustomer) {
+        potentialCustomer.value = page.props.potentialCustomer
+      }
+    },
+    onError: (errors) => {
+      showFlashMessage('Failed to create proposal.', 'error')
     }
-  )
+  })
 }
 
-// FIXED: Payment submission handler - prevents double submission
+// Payment submission handler
 const handlePaymentSubmit = async (event) => {
-  // Prevent default browser behavior
   event.preventDefault()
   event.stopPropagation()
   
-  // Generate submission ID for this attempt
-  const currentSubmissionId = Date.now()
-  submissionId.value = currentSubmissionId
-  
-  console.log(`DEBUG [${currentSubmissionId}]: Starting payment submission`)
-  
-  // Prevent double submission
-  if (isSubmitting.value || paymentForm.processing) {
-    console.log(`DEBUG [${currentSubmissionId}]: Already submitting, skipping`)
+  if (paymentForm.processing || isSubmitting.value) {
     return
   }
   
-  // Set submission flags
   isSubmitting.value = true
   paymentForm.processing = true
   
-  // Disable the submit button to prevent double clicks
   if (submitButtonRef.value) {
     submitButtonRef.value.disabled = true
   }
   
-  // Validate required fields
   if (!paymentForm.amount || !paymentForm.method || !paymentForm.schedule || !paymentForm.payment_date) {
     showFlashMessage('Please fill in all required fields', 'error')
     paymentForm.processing = false
@@ -1368,181 +1323,221 @@ const handlePaymentSubmit = async (event) => {
     return
   }
   
-  console.log(`DEBUG [${currentSubmissionId}]: Validated fields, preparing data`)
-  
-  // Prepare payment data - ensure it's synced with customer
+  // Convert amount to number
   const paymentData = {
-    amount: parseFloat(paymentForm.amount),
-    method: paymentForm.method,
-    schedule: paymentForm.schedule,
-    payment_date: paymentForm.payment_date,
-    reference_number: paymentForm.reference_number || '',
-    remarks: paymentForm.remarks || '',
-    potential_customer_id: props.potentialCustomer.id, // Ensure sync
-    _submission_id: currentSubmissionId // Add submission ID for tracking
+    ...paymentForm.data(),
+    amount: parseFloat(paymentForm.amount)
   }
   
-  console.log(`DEBUG [${currentSubmissionId}]: Sending payment data:`, paymentData)
-  
-  try {
-    // Use Inertia to submit the form
-    await router.post(`/admin/potential-customers/${props.potentialCustomer.id}/payments`, paymentData, {
-      preserveScroll: true,
-      preserveState: true,
-      onStart: () => {
-        console.log(`DEBUG [${currentSubmissionId}]: Request started`)
-      },
-      onSuccess: (page) => {
-        console.log(`DEBUG [${currentSubmissionId}]: Payment created successfully!`)
-        console.log(`DEBUG [${currentSubmissionId}]: Updated payments:`, page.props.potentialCustomer?.payments)
-        
-        // Reset form
-        paymentForm.processing = false
-        isSubmitting.value = false
-        
-        // Clear form fields
-        paymentForm.amount = ''
-        paymentForm.method = ''
-        paymentForm.schedule = ''
-        paymentForm.payment_date = new Date().toISOString().split('T')[0]
-        paymentForm.reference_number = ''
-        paymentForm.remarks = ''
-        
-        // Close modal
-        closeCreatePaymentModal()
-        
-        // Show success message
-        showFlashMessage('Payment created and synced with customer successfully!', 'success')
-        
-        // Force a page reload to get fresh data
-        setTimeout(() => {
-          router.reload({
-            only: ['potentialCustomer'],
-            preserveScroll: true
-          })
-        }, 1000)
-      },
-      onError: (errors) => {
-        console.error(`DEBUG [${currentSubmissionId}]: Payment creation errors:`, errors)
-        paymentForm.processing = false
-        isSubmitting.value = false
-        
-        if (submitButtonRef.value) submitButtonRef.value.disabled = false
-        
-        if (errors && typeof errors === 'object') {
-          const errorMessages = Object.values(errors).join(', ')
-          showFlashMessage(`Error: ${errorMessages}`, 'error')
-        } else {
-          showFlashMessage('Failed to create payment. Please try again.', 'error')
-        }
-      },
-      onFinish: () => {
-        console.log(`DEBUG [${currentSubmissionId}]: Request finished`)
-        // Reset submission flags after completion
-        setTimeout(() => {
-          isSubmitting.value = false
-          paymentForm.processing = false
-          if (submitButtonRef.value) submitButtonRef.value.disabled = false
-        }, 1000)
-      }
-    })
-  } catch (error) {
-    console.error(`DEBUG [${currentSubmissionId}]: Exception during payment creation:`, error)
-    paymentForm.processing = false
-    isSubmitting.value = false
-    if (submitButtonRef.value) submitButtonRef.value.disabled = false
-    showFlashMessage('An unexpected error occurred. Please try again.', 'error')
-  }
-}
-
-// Payment Actions
-const editPayment = (paymentId) => {
-  router.get(`/admin/potential-customers/${props.potentialCustomer.id}/payments/${paymentId}/edit`)
-}
-
-const deletePayment = (paymentId) => {
-  if (!window.confirm('Are you sure you want to delete this payment?')) {
-    return
-  }
-  
-  router.delete(`/admin/potential-customers/${props.potentialCustomer.id}/payments/${paymentId}`, {
+  paymentForm.post(`/admin/potential-customers/${potentialCustomer.value.id}/payments`, {
     preserveScroll: true,
-    onError: () => {
-      showFlashMessage('Failed to delete payment.', 'error')
-    },
-    onSuccess: () => {
-      showFlashMessage('Payment deleted successfully!', 'success')
+    preserveState: true,
+    onSuccess: (page) => {
+      isSubmitting.value = false
+      paymentForm.reset()
       
-      // Reload the page to show updated payment info
-      setTimeout(() => {
-        router.reload({
-          only: ['potentialCustomer'],
-          preserveScroll: true
-        })
-      }, 500)
+      closeCreatePaymentModal()
+      
+      showFlashMessage('Payment created successfully!', 'success')
+      
+      if (page.props.potentialCustomer) {
+        potentialCustomer.value = page.props.potentialCustomer
+      }
+    },
+    onError: (errors) => {
+      isSubmitting.value = false
+      paymentForm.processing = false
+      
+      if (submitButtonRef.value) submitButtonRef.value.disabled = false
+      
+      if (errors.message) {
+        showFlashMessage(errors.message, 'error')
+      } else if (errors.amount) {
+        showFlashMessage(errors.amount[0], 'error')
+      } else {
+        showFlashMessage('Failed to create payment. Please try again.', 'error')
+      }
+    },
+    onFinish: () => {
+      isSubmitting.value = false
+      paymentForm.processing = false
+      if (submitButtonRef.value) submitButtonRef.value.disabled = false
     }
   })
 }
 
-// FIXED: viewAllPayments function
-const viewAllPayments = () => {
-  window.location.href = `/admin/potential-customers/${props.potentialCustomer.id}/payments`
+// Payment Actions
+const editPayment = (paymentId) => {
+  console.log('Editing payment:', paymentId)
+  router.get(`/admin/payments/${paymentId}/edit`)
 }
 
-// Approve Customer
-const approveCustomer = () => {
-  if (!window.confirm(`Approve "${props.potentialCustomer.potential_customer_name}" and move to customers?`)) {
+// FIXED: Delete payment with proper routing
+const deletePayment = async (paymentId) => {
+  console.log('Attempting to delete payment:', paymentId)
+  
+  if (!window.confirm('Are you sure you want to delete this payment?')) {
     return
   }
   
+  deleteLoading.value = true
+  
+  try {
+    // Find the payment in the current data
+    const payment = potentialCustomer.value.payments?.find(p => p.id === paymentId)
+    if (!payment) {
+      showFlashMessage('Payment not found.', 'error')
+      deleteLoading.value = false
+      return
+    }
+    
+    console.log('Payment found:', {
+      id: payment.id,
+      amount: payment.amount,
+      customer_id: payment.customer_id,
+      potential_customer_id: payment.potential_customer_id
+    })
+    
+    // Use the direct route that matches the PaymentController destroy method
+    // The route should be: /admin/potential-customers/{customerId}/payments/{paymentId}
+    const deleteUrl = `/admin/potential-customers/${potentialCustomer.value.id}/payments/${paymentId}`
+    
+    console.log('Using delete URL:', deleteUrl)
+    
+    // Use Inertia's delete method with proper configuration
+    const response = await router.delete(deleteUrl, {
+      preserveScroll: false,
+      preserveState: false,
+      onSuccess: (page) => {
+        console.log('Payment deleted successfully, reloading page...')
+        
+        // Show success message
+        showFlashMessage('Payment deleted successfully!', 'success')
+        
+        // Force a page reload after a short delay to ensure fresh data
+        setTimeout(() => {
+          window.location.reload()
+        }, 500)
+      },
+      onError: (errors) => {
+        console.error('Delete payment error:', errors)
+        
+        // Try the global route as fallback
+        console.log('Trying global delete route...')
+        router.delete(`/admin/payments/${paymentId}`, {
+          preserveScroll: false,
+          preserveState: false,
+          onSuccess: (page) => {
+            console.log('Global delete succeeded')
+            showFlashMessage('Payment deleted successfully!', 'success')
+            
+            setTimeout(() => {
+              window.location.reload()
+            }, 500)
+          },
+          onError: (secondErrors) => {
+            console.error('Global delete also failed:', secondErrors)
+            
+            // Show detailed error message
+            const errorMsg = secondErrors.message || 
+                           (typeof secondErrors === 'string' ? secondErrors : 'Unknown error')
+            showFlashMessage(`Failed to delete payment: ${errorMsg}`, 'error')
+            
+            deleteLoading.value = false
+          }
+        })
+      },
+      onFinish: () => {
+        deleteLoading.value = false
+      }
+    })
+    
+  } catch (error) {
+    console.error('Unexpected error in deletePayment:', error)
+    showFlashMessage('An unexpected error occurred while deleting the payment.', 'error')
+    deleteLoading.value = false
+  }
+}
+
+// View All Payments
+const viewAllPayments = () => {
+  router.get(`/admin/potential-customers/${potentialCustomer.value.id}/payments`)
+}
+
+// Approve Customer
+const approveCustomer = async () => {
+  const customerName = potentialCustomer.value.potential_customer_name
+
+  if (!window.confirm(`Approve "${customerName}" and move to customers?`)) {
+    return
+  }
+
   approveLoading.value = true
   
-  router.post(`/admin/potential-customers/${props.potentialCustomer.id}/approve`, {}, {
+  // Create a form for the approval request
+  const approvalForm = useForm({})
+  
+  approvalForm.post(`/admin/potential-customers/${potentialCustomer.value.id}/approve`, {
     preserveScroll: false,
     preserveState: false,
-    onSuccess: () => {
+    onSuccess: (page) => {
       approveLoading.value = false
-      showFlashMessage('Customer approved successfully! Page will reload...', 'success')
       
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
+      // The page will automatically reload with the updated status
+      // Flash message will be handled by the redirected page
     },
     onError: (errors) => {
       approveLoading.value = false
-      showFlashMessage('Failed to approve customer.', 'error')
+      
+      if (errors.message) {
+        showFlashMessage(errors.message, 'error')
+      } else {
+        showFlashMessage('Failed to approve customer. Please try again.', 'error')
+      }
+    },
+    onFinish: () => {
+      approveLoading.value = false
     }
   })
 }
 
 // Reject Customer
-const rejectCustomer = () => {
+const rejectCustomer = async () => {
   if (!rejectForm.reason.trim()) {
     showFlashMessage('Please provide a rejection reason.', 'error')
     return
   }
   
-  if (!window.confirm(`Reject "${props.potentialCustomer.potential_customer_name}"?`)) {
+  const customerName = potentialCustomer.value.potential_customer_name
+  
+  if (!window.confirm(`Reject "${customerName}"?`)) {
     return
   }
   
   rejectLoading.value = true
   
-  router.post(`/admin/potential-customers/${props.potentialCustomer.id}/reject`, rejectForm, {
+  rejectForm.post(`/admin/potential-customers/${potentialCustomer.value.id}/reject`, {
     preserveScroll: false,
     preserveState: false,
-    onSuccess: () => {
+    onSuccess: (page) => {
       rejectLoading.value = false
       closeRejectModal()
-      showFlashMessage('Customer rejected successfully! Page will reload...', 'success')
       
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
+      // Flash message will be handled by the redirected page
     },
     onError: (errors) => {
       rejectLoading.value = false
-      showFlashMessage('Failed to reject customer.', 'error')
+      
+      if (errors.message) {
+        showFlashMessage(errors.message, 'error')
+      } else if (errors.reason) {
+        showFlashMessage(errors.reason[0], 'error')
+      } else {
+        showFlashMessage('Failed to reject customer. Please try again.', 'error')
+      }
+    },
+    onFinish: () => {
+      rejectLoading.value = false
     }
   })
 }
@@ -1550,20 +1545,35 @@ const rejectCustomer = () => {
 // Other actions
 const deleteCustomer = () => {
   if (confirm('Delete this customer?')) {
-    router.delete(`/admin/potential-customers/${props.potentialCustomer.id}`, {
+    router.delete(`/admin/potential-customers/${potentialCustomer.value.id}`, {
       preserveScroll: true,
       onSuccess: goBack
     })
   }
 }
 
-const viewProposal = id => router.get(`/admin/proposals/${id}`)
-const editProposal = id => router.get(`/admin/proposals/${id}/edit`)
+const viewProposal = id => {
+  router.get(`/admin/proposals/${id}`)
+}
+
+const editProposal = id => {
+  router.get(`/admin/proposals/${id}/edit`)
+}
+
 const deleteProposal = id => {
   if (confirm('Delete this proposal?')) {
     router.delete(`/admin/proposals/${id}`, {
       preserveScroll: true,
-      onSuccess: () => router.reload({ only: ['potentialCustomer'] })
+      preserveState: true,
+      onSuccess: (page) => {
+        showFlashMessage('Proposal deleted successfully!', 'success')
+        if (page.props.potentialCustomer) {
+          potentialCustomer.value = page.props.potentialCustomer
+        }
+      },
+      onError: () => {
+        showFlashMessage('Failed to delete proposal.', 'error')
+      }
     })
   }
 }
@@ -1577,63 +1587,19 @@ onMounted(() => {
     flashMessageType.value = props.flash.type || 'success'
   }
   
-  // Debug: Log initial data
-  console.log('DEBUG: Component mounted')
-  console.log('DEBUG: Initial potentialCustomer:', props.potentialCustomer)
-  console.log('DEBUG: Customer status:', props.potentialCustomer.status)
-  console.log('DEBUG: All payments count:', props.potentialCustomer.payments?.length || 0)
-  console.log('DEBUG: Filtered payments count:', filteredPayments.value.length)
-  console.log('DEBUG: Filtered payments:', filteredPayments.value)
+  // Ensure CSRF token is available
+  if (typeof document !== 'undefined') {
+    nextTick(() => {
+      let csrfMeta = document.querySelector('meta[name="csrf-token"]')
+      if (!csrfMeta) {
+        csrfMeta = document.createElement('meta')
+        csrfMeta.name = 'csrf-token'
+        csrfMeta.content = props.csrf_token || ''
+        document.head.appendChild(csrfMeta)
+      } else if (!csrfMeta.content && props.csrf_token) {
+        csrfMeta.content = props.csrf_token
+      }
+    })
+  }
 })
 </script>
-
-<style scoped>
-/* Prevent double-click selection on buttons */
-button {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-}
-
-/* Disable pointer events during processing */
-button:disabled {
-  pointer-events: none;
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-/* Line clamp for proposal description */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Prevent form element double submission */
-form {
-  position: relative;
-}
-
-/* Add overlay when processing */
-form.processing::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.7);
-  z-index: 10;
-  pointer-events: none;
-}
-
-/* Disable text selection on form inputs */
-input:disabled, 
-select:disabled, 
-textarea:disabled {
-  cursor: not-allowed;
-  background-color: #f9fafb;
-}
-</style>

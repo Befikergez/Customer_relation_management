@@ -63,14 +63,14 @@
       <div class="flex-1 p-4 lg:p-6">
         <div class="max-w-4xl mx-auto">
           <!-- Flash Messages -->
-          <div v-if="errors.length > 0" class="mb-6">
+          <div v-if="errorList.length > 0" class="mb-6">
             <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 shadow-sm">
               <div class="flex items-center space-x-3">
                 <ExclamationCircleIcon class="w-5 h-5 text-red-500" />
                 <div>
                   <p class="font-medium mb-2">Please fix the following errors:</p>
                   <ul class="list-disc list-inside text-sm space-y-1">
-                    <li v-for="error in errors" :key="error">{{ error }}</li>
+                    <li v-for="error in errorList" :key="error">{{ error }}</li>
                   </ul>
                 </div>
               </div>
@@ -126,10 +126,10 @@
                       required
                       class="pl-7 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       placeholder="0.00"
-                      :class="errors.amount ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
+                      :class="fieldHasError('amount') ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
                     />
                   </div>
-                  <p v-if="errors.amount" class="mt-1 text-sm text-red-600">{{ errors.amount }}</p>
+                  <p v-if="fieldHasError('amount')" class="mt-1 text-sm text-red-600">{{ getFieldError('amount') }}</p>
                 </div>
 
                 <!-- Payment Method -->
@@ -141,7 +141,7 @@
                     v-model="form.method"
                     required
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    :class="errors.method ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
+                    :class="fieldHasError('method') ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
                   >
                     <option value="">Select Payment Method</option>
                     <option value="Cash">💰 Cash</option>
@@ -151,7 +151,7 @@
                     <option value="Digital Wallet">📱 Digital Wallet</option>
                     <option value="Other">💸 Other</option>
                   </select>
-                  <p v-if="errors.method" class="mt-1 text-sm text-red-600">{{ errors.method }}</p>
+                  <p v-if="fieldHasError('method')" class="mt-1 text-sm text-red-600">{{ getFieldError('method') }}</p>
                 </div>
 
                 <!-- Payment Schedule -->
@@ -163,7 +163,7 @@
                     v-model="form.schedule"
                     required
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    :class="errors.schedule ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
+                    :class="fieldHasError('schedule') ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
                   >
                     <option value="">Select Payment Schedule</option>
                     <option value="One-time">One-time Payment</option>
@@ -173,7 +173,7 @@
                     <option value="Annual">Annual</option>
                     <option value="Custom">Custom Schedule</option>
                   </select>
-                  <p v-if="errors.schedule" class="mt-1 text-sm text-red-600">{{ errors.schedule }}</p>
+                  <p v-if="fieldHasError('schedule')" class="mt-1 text-sm text-red-600">{{ getFieldError('schedule') }}</p>
                 </div>
 
                 <!-- Payment Date -->
@@ -186,24 +186,11 @@
                     v-model="form.payment_date"
                     required
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    :class="errors.payment_date ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
+                    :class="fieldHasError('payment_date') ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
                   />
-                  <p v-if="errors.payment_date" class="mt-1 text-sm text-red-600">{{ errors.payment_date }}</p>
+                  <p v-if="fieldHasError('payment_date')" class="mt-1 text-sm text-red-600">{{ getFieldError('payment_date') }}</p>
                 </div>
-
-                <!-- Reference Number -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Reference Number</label>
-                  <input
-                    type="text"
-                    v-model="form.reference_number"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="e.g., INV-001, TRANS-001"
-                    :class="errors.reference_number ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
-                  />
-                  <p v-if="errors.reference_number" class="mt-1 text-sm text-red-600">{{ errors.reference_number }}</p>
-                </div>
-              </div>
+              </div> <!-- Closing grid div -->
 
               <!-- Remarks -->
               <div>
@@ -213,9 +200,9 @@
                   rows="4"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
                   placeholder="Enter any additional notes about this payment..."
-                  :class="errors.remarks ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
+                  :class="fieldHasError('remarks') ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
                 ></textarea>
-                <p v-if="errors.remarks" class="mt-1 text-sm text-red-600">{{ errors.remarks }}</p>
+                <p v-if="fieldHasError('remarks')" class="mt-1 text-sm text-red-600">{{ getFieldError('remarks') }}</p>
               </div>
 
               <!-- Form Actions -->
@@ -249,15 +236,15 @@
                      class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <span class="text-lg">{{ payment.payment_method_icon }}</span>
+                      <span class="text-lg">{{ getPaymentMethodIcon(payment.method) }}</span>
                     </div>
                     <div>
-                      <p class="text-sm font-medium text-gray-900">${{ payment.amount }}</p>
-                      <p class="text-xs text-gray-500">{{ payment.method }} • {{ payment.formatted_date }}</p>
+                      <p class="text-sm font-medium text-gray-900">${{ parseFloat(payment.amount).toFixed(2) }}</p>
+                      <p class="text-xs text-gray-500">{{ payment.method }} • {{ formatDate(payment.payment_date || payment.created_at) }}</p>
                     </div>
                   </div>
-                  <span :class="payment.status_badge_class" class="px-2 py-1 rounded-full text-xs font-semibold">
-                    {{ payment.formatted_status }}
+                  <span :class="getPaymentStatusClass(payment.status)" class="px-2 py-1 rounded-full text-xs font-semibold">
+                    {{ formatPaymentStatus(payment.status) }}
                   </span>
                 </div>
               </div>
@@ -284,7 +271,7 @@ import {
 const props = defineProps({
   potentialCustomer: {
     type: Object,
-    default: null
+    required: true
   },
   permissions: {
     type: Object,
@@ -311,7 +298,6 @@ const form = reactive({
   method: '',
   schedule: '',
   payment_date: new Date().toISOString().split('T')[0],
-  reference_number: '',
   remarks: '',
   processing: false
 })
@@ -319,13 +305,17 @@ const form = reactive({
 // Computed
 const errorList = computed(() => {
   const list = []
-  Object.entries(props.errors).forEach(([field, messages]) => {
-    if (Array.isArray(messages)) {
-      messages.forEach(msg => list.push(`${field}: ${msg}`))
-    } else {
-      list.push(`${field}: ${messages}`)
-    }
-  })
+  if (props.errors) {
+    Object.entries(props.errors).forEach(([field, messages]) => {
+      if (Array.isArray(messages)) {
+        messages.forEach(msg => list.push(`${field}: ${msg}`))
+      } else if (typeof messages === 'string') {
+        list.push(`${field}: ${messages}`)
+      } else {
+        list.push(`${field}: ${JSON.stringify(messages)}`)
+      }
+    })
+  }
   return list
 })
 
@@ -334,7 +324,9 @@ const statusBadgeClass = computed(() => {
     draft: 'bg-blue-100 text-blue-800',
     proposal_sent: 'bg-orange-100 text-orange-800',
     accepted: 'bg-green-100 text-green-800',
-    rejected: 'bg-red-100 text-red-800'
+    rejected: 'bg-red-100 text-red-800',
+    active: 'bg-green-100 text-green-800',
+    inactive: 'bg-gray-100 text-gray-800'
   }
   return map[props.potentialCustomer.status] || 'bg-gray-100 text-gray-800'
 })
@@ -345,9 +337,67 @@ function formatStatus(status) {
     draft: 'Draft',
     proposal_sent: 'Proposal Sent',
     accepted: 'Accepted',
-    rejected: 'Rejected'
+    rejected: 'Rejected',
+    active: 'Active',
+    inactive: 'Inactive'
   }
-  return map[status] || status
+  return map[status] || status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+function fieldHasError(field) {
+  return props.errors && props.errors[field] !== undefined
+}
+
+function getFieldError(field) {
+  if (props.errors && props.errors[field]) {
+    const error = props.errors[field]
+    return Array.isArray(error) ? error[0] : error
+  }
+  return ''
+}
+
+function getPaymentMethodIcon(method) {
+  const map = {
+    'Cash': '💰',
+    'Bank Transfer': '🏦',
+    'Credit Card': '💳',
+    'Check': '📝',
+    'Digital Wallet': '📱',
+    'Other': '💸'
+  }
+  return map[method] || '💰'
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'N/A'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  })
+}
+
+function getPaymentStatusClass(status) {
+  const map = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    completed: 'bg-green-100 text-green-800',
+    failed: 'bg-red-100 text-red-800',
+    refunded: 'bg-purple-100 text-purple-800',
+    cancelled: 'bg-gray-100 text-gray-800'
+  }
+  return map[status] || 'bg-gray-100 text-gray-800'
+}
+
+function formatPaymentStatus(status) {
+  const map = {
+    pending: 'Pending',
+    completed: 'Completed',
+    failed: 'Failed',
+    refunded: 'Refunded',
+    cancelled: 'Cancelled'
+  }
+  return map[status] || status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 // Actions
@@ -357,6 +407,13 @@ const goBack = () => {
 
 const submitForm = () => {
   form.processing = true
+  
+  // Validate required fields
+  if (!form.amount || parseFloat(form.amount) <= 0) {
+    form.processing = false
+    return
+  }
+  
   router.post(`/admin/potential-customers/${props.potentialCustomer.id}/payments`, form, {
     preserveScroll: true,
     onError: (errors) => {
@@ -371,5 +428,8 @@ const submitForm = () => {
 // Mounted
 onMounted(() => {
   // Set default values if needed
+  if (props.potentialCustomer && props.potentialCustomer.payments) {
+    console.log('Customer payments:', props.potentialCustomer.payments)
+  }
 })
 </script>

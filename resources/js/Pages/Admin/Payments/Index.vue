@@ -193,8 +193,6 @@
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Schedule</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Payment Date</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Reference</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Commission</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -224,20 +222,6 @@
                       <span :class="getPaymentStatusClass(payment)" class="px-3 py-1 rounded-full text-sm font-semibold">
                         {{ payment.is_active ? 'Active' : 'Inactive' }}
                       </span>
-                    </td>
-                    <td class="px-6 py-4">
-                      <span class="text-gray-700">{{ payment.reference_number || 'N/A' }}</span>
-                    </td>
-                    <td class="px-6 py-4">
-                      <div v-if="payment.commission_earned > 0">
-                        <span class="text-sm font-medium text-green-600">
-                          ${{ formatNumber(payment.commission_earned) }}
-                        </span>
-                        <div v-if="payment.commission_paid > 0" class="text-xs text-gray-500">
-                          Paid: ${{ formatNumber(payment.commission_paid) }}
-                        </div>
-                      </div>
-                      <span v-else class="text-gray-500 text-sm">-</span>
                     </td>
                     <td class="px-6 py-4">
                       <div class="flex gap-2">
@@ -406,7 +390,6 @@ const filteredPayments = computed(() => {
     return (
       payment.method?.toLowerCase().includes(query) ||
       payment.schedule?.toLowerCase().includes(query) ||
-      payment.reference_number?.toLowerCase().includes(query) ||
       payment.remarks?.toLowerCase().includes(query) ||
       payment.created_by?.name?.toLowerCase().includes(query) ||
       payment.amount?.toString().includes(query)

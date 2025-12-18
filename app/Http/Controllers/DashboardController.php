@@ -32,11 +32,14 @@ class DashboardController extends Controller
         // Get counts including settings-related counts
         $counts = $this->getCounts($user);
 
+        // Get payment and commission status data
+        $paymentCommissionData = $this->getPaymentCommissionData($user);
+
+        // Get customer conversion analytics
+        $customerAnalytics = $this->getCustomerAnalytics($user);
+
         // Get chart data
         $chartData = $this->getChartData($user);
-
-        // Get top products
-        $topProducts = $this->getTopProducts($user);
 
         // Get notifications
         $notifications = $this->getNotifications($user);
@@ -51,8 +54,9 @@ class DashboardController extends Controller
             'user' => $user,
             'tables' => $tables,
             'counts' => $counts,
+            'paymentCommissionData' => $paymentCommissionData,
+            'customerAnalytics' => $customerAnalytics,
             'chartData' => $chartData,
-            'topProducts' => $topProducts,
             'notifications' => $notifications,
             'userRole' => $user->roles->first()->name ?? 'user',
             'recentActivities' => $recentActivities,
@@ -131,17 +135,14 @@ class DashboardController extends Controller
     {
         $counts = [];
         
-        // Define resources that definitely exist - REMOVED users and product_categories
+        // Define resources that definitely exist
         $resources = [
-            'products' => Product::class,
             'customers' => Customer::class,
             'industries' => Industry::class,
             'opportunities' => Opportunity::class,
             'rejected_opportunities' => RejectedOpportunity::class,
             'contracts' => Contract::class,
             'proposals' => Proposal::class,
-            // 'users' => User::class, // REMOVED
-            // 'product_categories' => ProductCategory::class, // REMOVED
         ];
 
         // Conditionally add Role if the model exists
@@ -164,29 +165,337 @@ class DashboardController extends Controller
     }
 
     /**
+     * Get payment and commission status data for histograms - UPDATED TO MATCH YOUR CUSTOMER MODEL
+     */
+    protected function getPaymentCommissionData($user)
+    {
+        if (!$this->canViewResource($user, 'customers')) {
+            return $this->getEmptyPaymentCommissionData();
+        }
+
+        try {
+            // First check if we have any customers
+            $totalCustomers = Customer::count();
+            
+            if ($totalCustomers === 0) {
+                return $this->getEmptyPaymentCommissionData();
+            }
+
+            // Get all unique payment statuses from customers
+            $paymentStatuses = Customer::distinct('payment_status')
+                ->whereNotNull('payment_status')
+                ->pluck('payment_status')
+                ->filter()
+                ->toArray();
+                
+            // If no specific statuses found, use defaults
+            if (empty($paymentStatuses)) {
+                $paymentStatuses = ['not_paid', 'pending', 'half_paid', 'paid'];
+            }
+            
+            $paymentStatusData = collect();
+            
+            foreach ($paymentStatuses as $status) {
+                $count = Customer::where('payment_status', $status)->count();
+                $totalAmount = Customer::where('payment_status', $status)->sum('total_payment_amount');
+                
+                $paymentStatusData->push((object) [
+                    'status' => $status,
+                    'count' => $count,
+                    'total_amount' => $totalAmount ?? 0
+                ]);
+            }
+
+            // Get all unique commission statuses from customers
+            $commissionStatuses = Customer::distinct('commission_status')
+                ->whereNotNull('commission_status')
+                ->pluck('commission_status')
+                ->filter()
+                ->toArray();
+                
+            // If no specific statuses found, use defaults
+            if (empty($commissionStatuses)) {
+                $commissionStatuses = ['not_applicable', 'not_paid', 'pending', 'paid'];
+            }
+            
+            $commissionStatusData = collect();
+            
+            foreach ($commissionStatuses as $status) {
+                $count = Customer::where('commission_status', $status)->count();
+                $totalCommission = Customer::where('commission_status', $status)->sum('commission_amount');
+                
+                $commissionStatusData->push((object) [
+                    'status' => $status,
+                    'count' => $count,
+                    'total_commission' => $totalCommission ?? 0
+                ]);
+            }
+
+            // Calculate summary stats
+            $totalPayments = Customer::sum('total_payment_amount');
+            $totalCommissions = Customer::sum('commission_amount');
+            $pendingPayments = Customer::whereIn('payment_status', ['pending', 'half_paid'])->count();
+            $overduePayments = 0; // You don't have an overdue field, so this is 0
+
+            // Calculate collection rate: paid / total
+            $paidPayments = Customer::where('payment_status', 'paid')->sum('total_payment_amount');
+            $paymentCollectionRate = $totalPayments > 0 ? 
+                round(($paidPayments / $totalPayments) * 100, 2) : 0;
+
+            return [
+                'payment_status' => [
+                    'labels' => $paymentStatusData->pluck('status')->toArray(),
+                    'data' => $paymentStatusData->pluck('count')->toArray(),
+                    'amounts' => $paymentStatusData->pluck('total_amount')->toArray(),
+                    'colors' => $this->getPaymentStatusColors($paymentStatuses)
+                ],
+                'commission_status' => [
+                    'labels' => $commissionStatusData->pluck('status')->toArray(),
+                    'data' => $commissionStatusData->pluck('count')->toArray(),
+                    'amounts' => $commissionStatusData->pluck('total_commission')->toArray(),
+                    'colors' => $this->getCommissionStatusColors($commissionStatuses)
+                ],
+                'summary' => [
+                    'total_payments' => $totalPayments,
+                    'total_commissions' => $totalCommissions,
+                    'pending_payments' => $pendingPayments,
+                    'overdue_payments' => $overduePayments,
+                    'payment_collection_rate' => $paymentCollectionRate
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            Log::error("Error getting payment/commission data: " . $e->getMessage());
+            return $this->getEmptyPaymentCommissionData();
+        }
+    }
+
+    /**
+     * Get colors for payment statuses
+     */
+    private function getPaymentStatusColors($statuses)
+    {
+        $colorMap = [
+            'paid' => '#4CAF50',
+            'half_paid' => '#FF9800',
+            'pending' => '#FFB74D',
+            'not_paid' => '#F44336',
+            'overdue' => '#757575',
+        ];
+        
+        $colors = [];
+        foreach ($statuses as $status) {
+            $colors[$status] = $colorMap[$status] ?? '#9E9E9E';
+        }
+        
+        return $colors;
+    }
+
+    /**
+     * Get colors for commission statuses
+     */
+    private function getCommissionStatusColors($statuses)
+    {
+        $colorMap = [
+            'paid' => '#4CAF50',
+            'pending' => '#2196F3',
+            'not_paid' => '#FF9800',
+            'not_applicable' => '#9E9E9E',
+        ];
+        
+        $colors = [];
+        foreach ($statuses as $status) {
+            $colors[$status] = $colorMap[$status] ?? '#9E9E9E';
+        }
+        
+        return $colors;
+    }
+
+    /**
+     * Get empty payment commission data structure
+     */
+    protected function getEmptyPaymentCommissionData()
+    {
+        return [
+            'payment_status' => [
+                'labels' => ['not_paid', 'pending', 'half_paid', 'paid'],
+                'data' => [0, 0, 0, 0],
+                'amounts' => [0, 0, 0, 0],
+                'colors' => [
+                    'paid' => '#4CAF50',
+                    'half_paid' => '#FF9800',
+                    'pending' => '#FFB74D',
+                    'not_paid' => '#F44336'
+                ]
+            ],
+            'commission_status' => [
+                'labels' => ['not_applicable', 'not_paid', 'pending', 'paid'],
+                'data' => [0, 0, 0, 0],
+                'amounts' => [0, 0, 0, 0],
+                'colors' => [
+                    'paid' => '#4CAF50',
+                    'pending' => '#2196F3',
+                    'not_paid' => '#FF9800',
+                    'not_applicable' => '#9E9E9E'
+                ]
+            ],
+            'summary' => [
+                'total_payments' => 0,
+                'total_commissions' => 0,
+                'pending_payments' => 0,
+                'overdue_payments' => 0,
+                'payment_collection_rate' => 0
+            ]
+        ];
+    }
+
+    /**
+     * Get customer conversion analytics - UPDATED TO MATCH YOUR CUSTOMER MODEL
+     */
+    protected function getCustomerAnalytics($user)
+    {
+        if (!$this->canViewResource($user, 'customers')) {
+            return $this->getEmptyCustomerAnalytics();
+        }
+
+        try {
+            // Get all customers count
+            $totalCustomers = Customer::count();
+            
+            if ($totalCustomers === 0) {
+                return $this->getEmptyCustomerAnalytics();
+            }
+
+            // Get counts by status - Using your actual status values from CustomerController
+            $draftCount = Customer::where('status', 'draft')->count();
+            $contractCreatedCount = Customer::where('status', 'contract_created')->count();
+            $acceptedCount = Customer::where('status', 'accepted')->count();
+            $rejectedCount = Customer::where('status', 'rejected')->count();
+
+            // Map to conversion funnel (draft/contract_created = potential, accepted = approved, rejected = rejected)
+            $potentialCount = $draftCount + $contractCreatedCount;
+            $approvedCount = $acceptedCount;
+
+            // Calculate rates based on potential customers (draft + contract_created + accepted + rejected)
+            $totalProcessed = $potentialCount + $approvedCount + $rejectedCount;
+            $approvalRate = $totalProcessed > 0 ? round(($approvedCount / $totalProcessed) * 100, 2) : 0;
+            $rejectionRate = $totalProcessed > 0 ? round(($rejectedCount / $totalProcessed) * 100, 2) : 0;
+
+            // Get today's conversions
+            $todayConversions = Customer::select(
+                DB::raw("COUNT(CASE WHEN status IN ('draft', 'contract_created') THEN 1 END) as potential_today"),
+                DB::raw("COUNT(CASE WHEN status = 'accepted' THEN 1 END) as approved_today"),
+                DB::raw("COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_today")
+            )
+            ->whereDate('created_at', Carbon::today())
+            ->first();
+
+            // Get total values (using total_payment_amount as value metric)
+            $totalValuePotential = Customer::whereIn('status', ['draft', 'contract_created'])->sum('total_payment_amount') ?? 0;
+            $totalValueApproved = Customer::where('status', 'accepted')->sum('total_payment_amount') ?? 0;
+
+            // Get conversion timeline (last 30 days)
+            $timelineData = Customer::select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw("SUM(CASE WHEN status IN ('draft', 'contract_created') THEN 1 ELSE 0 END) as potential"),
+                DB::raw("SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as approved"),
+                DB::raw("SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected")
+            )
+            ->where('created_at', '>=', Carbon::now()->subDays(30))
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+
+            return [
+                'conversion_data' => [
+                    'labels' => ['potential', 'approved', 'rejected'],
+                    'counts' => [$potentialCount, $approvedCount, $rejectedCount],
+                    'values' => [$totalValuePotential, $totalValueApproved, 0],
+                    'colors' => [
+                        'potential' => '#2196F3',
+                        'approved' => '#4CAF50',
+                        'rejected' => '#F44336'
+                    ]
+                ],
+                'timeline_data' => [
+                    'dates' => $timelineData->pluck('date')->toArray(),
+                    'potential' => $timelineData->pluck('potential')->toArray(),
+                    'approved' => $timelineData->pluck('approved')->toArray(),
+                    'rejected' => $timelineData->pluck('rejected')->toArray()
+                ],
+                'summary' => [
+                    'total_customers' => $totalCustomers,
+                    'potential_count' => $potentialCount,
+                    'approved_count' => $approvedCount,
+                    'rejected_count' => $rejectedCount,
+                    'approval_rate' => $approvalRate,
+                    'rejection_rate' => $rejectionRate,
+                    'potential_today' => $todayConversions->potential_today ?? 0,
+                    'approved_today' => $todayConversions->approved_today ?? 0,
+                    'rejected_today' => $todayConversions->rejected_today ?? 0,
+                    'total_value_potential' => $totalValuePotential,
+                    'total_value_approved' => $totalValueApproved
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            Log::error("Error getting customer analytics: " . $e->getMessage());
+            return $this->getEmptyCustomerAnalytics();
+        }
+    }
+
+    /**
+     * Get empty customer analytics data structure
+     */
+    protected function getEmptyCustomerAnalytics()
+    {
+        return [
+            'conversion_data' => [
+                'labels' => ['potential', 'approved', 'rejected'],
+                'counts' => [0, 0, 0],
+                'values' => [0, 0, 0],
+                'colors' => [
+                    'potential' => '#2196F3',
+                    'approved' => '#4CAF50',
+                    'rejected' => '#F44336'
+                ]
+            ],
+            'timeline_data' => [
+                'dates' => [],
+                'potential' => [],
+                'approved' => [],
+                'rejected' => []
+            ],
+            'summary' => [
+                'total_customers' => 0,
+                'potential_count' => 0,
+                'approved_count' => 0,
+                'rejected_count' => 0,
+                'approval_rate' => 0,
+                'rejection_rate' => 0,
+                'potential_today' => 0,
+                'approved_today' => 0,
+                'rejected_today' => 0,
+                'total_value_potential' => 0,
+                'total_value_approved' => 0
+            ]
+        ];
+    }
+
+    /**
      * Get settings statistics for the settings page - UPDATED WITH ROLES
      */
     protected function getSettingsStatistics($user)
     {
         $stats = [];
         
-        // Define settings resources that definitely exist - REMOVED users and product_categories
+        // Define settings resources that definitely exist
         $settingsResources = [
-            // 'users' => [ // REMOVED
-            //     'model' => User::class,
-            //     'active_count_method' => 'where',
-            //     'active_condition' => ['is_active', true]
-            // ],
             'products' => [
                 'model' => Product::class,
                 'active_count_method' => 'where',
                 'active_condition' => ['is_active', true]
             ],
-            // 'product_categories' => [ // REMOVED
-            //     'model' => ProductCategory::class,
-            //     'active_count_method' => 'where', 
-            //     'active_condition' => ['is_active', true]
-            // ],
             'industries' => [
                 'model' => Industry::class,
                 'active_count_method' => 'where',
@@ -353,28 +662,6 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get top products
-     */
-    protected function getTopProducts($user)
-    {
-        if (!$this->canViewResource($user, 'products')) {
-            return [];
-        }
-
-        return Product::orderBy('created_at', 'desc')
-            ->take(5)
-            ->get()
-            ->map(function ($product) {
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'category' => $product->category,
-                    'sales' => 0,
-                ];
-            });
-    }
-
-    /**
      * Get notifications for user
      */
     protected function getNotifications($user)
@@ -444,19 +731,27 @@ class DashboardController extends Controller
             }
         }
 
-        // Get recent products
-        $recentProducts = Product::where('created_at', '>=', Carbon::now()->subDays(1))
+        // Get recent customers with conversion status - USING YOUR ACTUAL STATUS VALUES
+        $recentCustomers = Customer::where('created_at', '>=', Carbon::now()->subDays(1))
             ->orderBy('created_at', 'desc')
-            ->take(3)
+            ->take(5)
             ->get();
 
-        foreach ($recentProducts as $product) {
+        foreach ($recentCustomers as $customer) {
+            $statusLabel = match($customer->status) {
+                'draft', 'contract_created' => 'Potential Customer',
+                'accepted' => 'Approved Customer',
+                'rejected' => 'Rejected Customer',
+                default => 'Customer'
+            };
+            
             $activities[] = [
-                'type' => 'product_created',
-                'message' => "New product added: {$product->name}",
-                'time' => $product->created_at->diffForHumans(),
-                'user' => ['name' => 'System', 'email' => 'system@example.com'],
-                'timestamp' => $product->created_at->toISOString()
+                'type' => 'customer_' . $customer->status,
+                'message' => "{$statusLabel}: {$customer->name}",
+                'time' => $customer->created_at->diffForHumans(),
+                'user' => ['name' => 'Sales Team', 'email' => 'sales@example.com'],
+                'timestamp' => $customer->created_at->toISOString(),
+                'customer_status' => $customer->status
             ];
         }
 
@@ -540,6 +835,54 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', 'Notification not found.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to mark notification as read.');
+        }
+    }
+
+    /**
+     * API endpoint for payment/commission data
+     */
+    public function getPaymentCommissionDataApi()
+    {
+        try {
+            $user = auth()->user();
+            $data = $this->getPaymentCommissionData($user);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'timestamp' => now()->toISOString()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch payment/commission data',
+                'error' => $e->getMessage(),
+                'data' => $this->getEmptyPaymentCommissionData()
+            ], 500);
+        }
+    }
+
+    /**
+     * API endpoint for customer analytics data
+     */
+    public function getCustomerAnalyticsApi()
+    {
+        try {
+            $user = auth()->user();
+            $data = $this->getCustomerAnalytics($user);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'timestamp' => now()->toISOString()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch customer analytics',
+                'error' => $e->getMessage(),
+                'data' => $this->getEmptyCustomerAnalytics()
+            ], 500);
         }
     }
 }

@@ -3,10 +3,12 @@
 namespace App\Notifications;
 
 use App\Models\Proposal;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 
 class ProposalStatusNotification extends Notification implements ShouldQueue
 {
@@ -20,7 +22,7 @@ class ProposalStatusNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -35,16 +37,41 @@ class ProposalStatusNotification extends Notification implements ShouldQueue
             ->line('Thank you for using our CRM!');
     }
 
+    public function toDatabase(object $notifiable): array
+    {
+        return $this->toArray($notifiable);
+    }
+
     public function toArray(object $notifiable): array
     {
+        $customerName = $this->proposal->potentialCustomer->name ?? 'Unknown Customer';
+        
         return [
             'proposal_id' => $this->proposal->id,
             'proposal_title' => $this->proposal->title,
             'action' => $this->action,
             'actor_name' => $this->actorName,
+            'customer_name' => $customerName,
             'message' => $this->getMessage(),
             'timestamp' => now(),
+            'type' => 'proposal',
+            'url' => "/proposals/{$this->proposal->id}",
+            'icon' => $this->getIcon(),
         ];
+    }
+
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage([
+            'id' => $this->id,
+            'type' => 'proposal',
+            'title' => $this->getSubject(),
+            'message' => $this->getMessage(),
+            'action' => $this->action,
+            'timestamp' => now()->toISOString(),
+            'url' => "/proposals/{$this->proposal->id}",
+            'icon' => $this->getIcon(),
+        ]);
     }
 
     private function getSubject(): string
@@ -74,6 +101,18 @@ class ProposalStatusNotification extends Notification implements ShouldQueue
             'customer_approved' => "Customer {$this->actorName} has approved the proposal '{$this->proposal->title}'.",
             'customer_rejected' => "Customer {$this->actorName} has rejected the proposal '{$this->proposal->title}'.",
             default => "Proposal '{$this->proposal->title}' for {$customerName} has been updated by {$this->actorName}."
+        };
+    }
+
+    private function getIcon(): string
+    {
+        return match($this->action) {
+            'created' => 'file-text',
+            'approved', 'customer_approved' => 'check-circle',
+            'rejected', 'customer_rejected' => 'x-circle',
+            'updated' => 'edit',
+            'manager_reviewed' => 'eye',
+            default => 'bell'
         };
     }
 }

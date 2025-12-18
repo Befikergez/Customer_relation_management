@@ -25,6 +25,29 @@
         <div class="p-4 sm:p-6">
           <div class="max-w-4xl mx-auto">
             <div class="bg-white rounded-lg border border-teal-200 overflow-hidden">
+              <!-- Success/Error Messages -->
+              <div v-if="successMessage" class="bg-green-50 border-l-4 border-green-500 p-4 m-4">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <CheckCircleIcon class="h-5 w-5 text-green-400" />
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm text-green-700">{{ successMessage }}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div v-if="errorMessage" class="bg-red-50 border-l-4 border-red-500 p-4 m-4">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <XCircleIcon class="h-5 w-5 text-red-400" />
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm text-red-700">{{ errorMessage }}</p>
+                  </div>
+                </div>
+              </div>
+
               <!-- Form -->
               <form @submit.prevent="submitForm" class="p-6 sm:p-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -181,7 +204,7 @@
                     class="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg"
                   >
                     <CheckIcon class="w-4 h-4" />
-                    <span>Update Customer</span>
+                    <span>{{ form.processing ? 'Updating...' : 'Update Customer' }}</span>
                   </button>
                   
                   <button
@@ -212,14 +235,16 @@
 </template>
 
 <script setup>
-import { reactive, computed } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { reactive, computed, onMounted, watch } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import {
   ArrowLeftIcon,
   CheckIcon,
   XMarkIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -230,6 +255,8 @@ const props = defineProps({
   subcities: Array
 })
 
+const page = usePage()
+
 // Computed property for available subcities
 const availableSubcities = computed(() => {
   if (!form.city_id) return []
@@ -238,17 +265,21 @@ const availableSubcities = computed(() => {
 
 // Initialize form with customer data
 const form = reactive({
-  potential_customer_name: props.potentialCustomer.potential_customer_name || '',
-  email: props.potentialCustomer.email || '',
-  phone: props.potentialCustomer.phone || '',
-  location: props.potentialCustomer.location || '',
-  remarks: props.potentialCustomer.remarks || '',
-  status: props.potentialCustomer.status || 'draft',
-  city_id: props.potentialCustomer.city_id || '',
-  subcity_id: props.potentialCustomer.subcity_id || '',
+  potential_customer_name: props.potentialCustomer?.potential_customer_name || '',
+  email: props.potentialCustomer?.email || '',
+  phone: props.potentialCustomer?.phone || '',
+  location: props.potentialCustomer?.location || '',
+  remarks: props.potentialCustomer?.remarks || '',
+  status: props.potentialCustomer?.status || 'draft',
+  city_id: props.potentialCustomer?.city_id || '',
+  subcity_id: props.potentialCustomer?.subcity_id || '',
   processing: false,
-  errors: props.errors || {}
+  errors: {}
 })
+
+// Success and error messages
+const successMessage = computed(() => page.props.flash.message)
+const errorMessage = computed(() => page.props.flash.error || page.props.flash.errors?.message)
 
 // Handle city change
 const onCityChange = () => {
@@ -259,16 +290,18 @@ const onCityChange = () => {
 // Submit form
 const submitForm = () => {
   form.processing = true
+  form.errors = {}
+  
   router.put(`/admin/potential-customers/${props.potentialCustomer.id}`, form, {
     onSuccess: () => {
       // Success handled by controller
+      form.processing = false
     },
     onError: (errors) => {
       form.errors = errors
-    },
-    onFinish: () => {
       form.processing = false
-    }
+    },
+    preserveScroll: true
   })
 }
 
@@ -289,4 +322,24 @@ const resetForm = () => {
 const goBack = () => {
   router.get('/admin/potential-customers')
 }
+
+// Clear flash messages after 5 seconds
+onMounted(() => {
+  if (successMessage.value || errorMessage.value) {
+    setTimeout(() => {
+      page.props.flash.message = null
+      page.props.flash.error = null
+    }, 5000)
+  }
+})
+
+// Watch for flash messages
+watch(() => page.props.flash, (newFlash) => {
+  if (newFlash.message || newFlash.error) {
+    setTimeout(() => {
+      page.props.flash.message = null
+      page.props.flash.error = null
+    }, 5000)
+  }
+}, { deep: true })
 </script>

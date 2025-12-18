@@ -517,8 +517,228 @@
 
     <!-- Edit Customer Modal -->
     <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-200 shadow-xl">
-        <!-- Modal content remains the same as before -->
+      <div class="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-200 shadow-xl">
+        <!-- Modal Header -->
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+          <div>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              Edit Potential Customer
+            </h2>
+            <p class="text-gray-600 text-sm mt-1">Update customer information and details</p>
+          </div>
+          <button 
+            @click="closeEditModal"
+            class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <XMarkIcon class="w-6 h-6" />
+          </button>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div v-if="successMessage" class="mb-4">
+          <div class="bg-green-50 border-l-4 border-green-500 p-4">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <CheckCircleIcon class="h-5 w-5 text-green-400" />
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-green-700">{{ successMessage }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="errorMessage" class="mb-4">
+          <div class="bg-red-50 border-l-4 border-red-500 p-4">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <XCircleIcon class="h-5 w-5 text-red-400" />
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-red-700">{{ errorMessage }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form -->
+        <form @submit.prevent="submitEdit" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Customer Name -->
+            <div class="md:col-span-2">
+              <label for="potential_customer_name" class="block text-sm font-medium text-gray-700 mb-2">
+                Customer Name *
+              </label>
+              <input
+                type="text"
+                id="potential_customer_name"
+                v-model="editForm.potential_customer_name"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                required
+              />
+              <div v-if="editForm.errors.potential_customer_name" class="text-red-600 text-sm mt-1">
+                {{ editForm.errors.potential_customer_name }}
+              </div>
+            </div>
+
+            <!-- Email -->
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                v-model="editForm.email"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+              />
+              <div v-if="editForm.errors.email" class="text-red-600 text-sm mt-1">
+                {{ editForm.errors.email }}
+              </div>
+            </div>
+
+            <!-- Phone -->
+            <div>
+              <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                id="phone"
+                v-model="editForm.phone"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+              />
+              <div v-if="editForm.errors.phone" class="text-red-600 text-sm mt-1">
+                {{ editForm.errors.phone }}
+              </div>
+            </div>
+
+            <!-- Location -->
+            <div class="md:col-span-2">
+              <label for="location" class="block text-sm font-medium text-gray-700 mb-2">
+                Location
+              </label>
+              <input
+                type="text"
+                id="location"
+                v-model="editForm.location"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+              />
+              <div v-if="editForm.errors.location" class="text-red-600 text-sm mt-1">
+                {{ editForm.errors.location }}
+              </div>
+            </div>
+
+            <!-- City -->
+            <div>
+              <label for="city_id" class="block text-sm font-medium text-gray-700 mb-2">
+                City
+              </label>
+              <select
+                id="city_id"
+                v-model="editForm.city_id"
+                @change="onCityChange"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+              >
+                <option value="">Select City</option>
+                <option v-for="city in cities" :key="city.id" :value="city.id">
+                  {{ city.name }}
+                </option>
+              </select>
+              <div v-if="editForm.errors.city_id" class="text-red-600 text-sm mt-1">
+                {{ editForm.errors.city_id }}
+              </div>
+            </div>
+
+            <!-- Subcity -->
+            <div>
+              <label for="subcity_id" class="block text-sm font-medium text-gray-700 mb-2">
+                Subcity
+              </label>
+              <select
+                id="subcity_id"
+                v-model="editForm.subcity_id"
+                :disabled="!editForm.city_id"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Select Subcity</option>
+                <option v-for="subcity in availableSubcities" :key="subcity.id" :value="subcity.id">
+                  {{ subcity.name }}
+                </option>
+              </select>
+              <div v-if="editForm.errors.subcity_id" class="text-red-600 text-sm mt-1">
+                {{ editForm.errors.subcity_id }}
+              </div>
+            </div>
+
+            <!-- Remarks -->
+            <div class="md:col-span-2">
+              <label for="remarks" class="block text-sm font-medium text-gray-700 mb-2">
+                Remarks
+              </label>
+              <textarea
+                id="remarks"
+                v-model="editForm.remarks"
+                rows="3"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 resize-none"
+                placeholder="Add any additional remarks or notes about this customer..."
+              ></textarea>
+              <div v-if="editForm.errors.remarks" class="text-red-600 text-sm mt-1">
+                {{ editForm.errors.remarks }}
+              </div>
+            </div>
+
+            <!-- Status -->
+            <div class="md:col-span-2">
+              <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                id="status"
+                v-model="editForm.status"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+              >
+                <option value="draft">Draft</option>
+                <option value="proposal_sent">Proposal Sent</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <div v-if="editForm.errors.status" class="text-red-600 text-sm mt-1">
+                {{ editForm.errors.status }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-wrap gap-3 mt-8 pt-6 border-t border-gray-200">
+            <button
+              type="submit"
+              :disabled="editForm.processing"
+              class="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg"
+            >
+              <CheckIcon class="w-4 h-4" />
+              <span>{{ editForm.processing ? 'Updating...' : 'Update Customer' }}</span>
+            </button>
+            
+            <button
+              type="button"
+              @click="closeEditModal"
+              class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg"
+            >
+              <XMarkIcon class="w-4 h-4" />
+              <span>Cancel</span>
+            </button>
+
+            <button
+              type="button"
+              @click="resetEditForm"
+              class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg"
+            >
+              <ArrowPathIcon class="w-4 h-4" />
+              <span>Reset</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -574,6 +794,8 @@ const cityFilter = ref('')
 const subcityFilter = ref('')
 const loading = ref(false)
 const isFilterExpanded = ref(false)
+const successMessage = ref('')
+const errorMessage = ref('')
 
 // Forms
 const editForm = reactive({
@@ -585,7 +807,8 @@ const editForm = reactive({
   status: 'draft',
   city_id: '',
   subcity_id: '',
-  processing: false
+  processing: false,
+  errors: {}
 })
 
 // Status filters
@@ -926,12 +1149,18 @@ const openEditModal = (customer) => {
   editForm.city_id = customer.city_id || ''
   editForm.subcity_id = customer.subcity_id || ''
   editForm.processing = false
+  editForm.errors = {}
+  successMessage.value = ''
+  errorMessage.value = ''
   showEditModal.value = true
 }
 
 const closeEditModal = () => {
   showEditModal.value = false
   selectedCustomer.value = null
+  editForm.errors = {}
+  successMessage.value = ''
+  errorMessage.value = ''
 }
 
 const onCityChange = () => {
@@ -942,17 +1171,44 @@ const submitEdit = () => {
   if (!selectedCustomer.value?.id) return
 
   editForm.processing = true
+  editForm.errors = {}
+  successMessage.value = ''
+  errorMessage.value = ''
 
   router.put(`/admin/potential-customers/${selectedCustomer.value.id}`, editForm, {
     preserveScroll: true,
     onSuccess: () => {
-      closeEditModal()
-      router.reload()
-    },
-    onError: () => {
       editForm.processing = false
+      successMessage.value = 'Customer updated successfully!'
+      
+      // Refresh the page data after a short delay
+      setTimeout(() => {
+        router.reload({ only: ['potentialCustomers'] })
+        closeEditModal()
+      }, 1500)
+    },
+    onError: (errors) => {
+      editForm.processing = false
+      editForm.errors = errors
+      errorMessage.value = 'Please fix the errors in the form.'
     }
   })
+}
+
+const resetEditForm = () => {
+  if (selectedCustomer.value) {
+    editForm.potential_customer_name = selectedCustomer.value.potential_customer_name || ''
+    editForm.email = selectedCustomer.value.email || ''
+    editForm.phone = selectedCustomer.value.phone || ''
+    editForm.location = selectedCustomer.value.location || ''
+    editForm.remarks = selectedCustomer.value.remarks || ''
+    editForm.status = selectedCustomer.value.status || 'draft'
+    editForm.city_id = selectedCustomer.value.city_id || ''
+    editForm.subcity_id = selectedCustomer.value.subcity_id || ''
+  }
+  editForm.errors = {}
+  successMessage.value = ''
+  errorMessage.value = ''
 }
 
 // Close dropdown when clicking outside

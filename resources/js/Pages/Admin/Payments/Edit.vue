@@ -45,11 +45,11 @@
         <div class="px-6 py-4">
           <div class="flex items-center space-x-4">
             <button 
-              @click="goBack"
+              @click="goBackToPotentialCustomer"
               class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
             >
               <ArrowLeftIcon class="w-4 h-4" />
-              <span>Back to Payments</span>
+              <span>Back to Potential Customer</span>
             </button>
             <div>
               <h1 class="text-2xl font-bold text-gray-900">Edit Payment</h1>
@@ -134,6 +134,14 @@
                   <div>
                     <p class="text-sm text-blue-600 font-medium">Payment ID</p>
                     <p class="text-gray-900">#{{ payment?.id || 'N/A' }}</p>
+                  </div>
+                  <div v-if="customer?.id">
+                    <p class="text-sm text-blue-600 font-medium">Customer ID</p>
+                    <p class="text-gray-900">#{{ customer.id }}</p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-blue-600 font-medium">Has Potential Customer ID?</p>
+                    <p class="text-gray-900">{{ payment?.potential_customer_id ? 'Yes' : 'No' }}</p>
                   </div>
                 </div>
               </div>
@@ -222,19 +230,6 @@
                   />
                   <p v-if="errors?.payment_date" class="mt-1 text-sm text-red-600">{{ errors.payment_date }}</p>
                 </div>
-
-                <!-- Reference Number -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Reference Number</label>
-                  <input
-                    type="text"
-                    v-model="form.reference_number"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                    placeholder="e.g., INV-001, TRANS-001"
-                    :class="errors?.reference_number ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''"
-                  />
-                  <p v-if="errors?.reference_number" class="mt-1 text-sm text-red-600">{{ errors.reference_number }}</p>
-                </div>
               </div>
 
               <!-- Remarks -->
@@ -279,7 +274,7 @@
               <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
                 <button 
                   type="button"
-                  @click="goBack"
+                  @click="goBackToPotentialCustomer"
                   class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium text-sm transition-colors"
                 >
                   Cancel
@@ -312,7 +307,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import {
@@ -351,6 +346,10 @@ const props = defineProps({
   errors: {
     type: Object,
     default: () => ({})
+  },
+  customerId: {
+    type: [String, Number],
+    default: null
   }
 })
 
@@ -364,10 +363,17 @@ const form = reactive({
   method: '',
   schedule: '',
   payment_date: '',
-  reference_number: '',
   remarks: '',
   customer_type: props.customerType,
   processing: false
+})
+
+// Debug logging
+console.log('Edit.vue props received:', {
+  customer: props.customer,
+  customerId: props.customerId,
+  customerType: props.customerType,
+  payment: props.payment
 })
 
 // Computed
@@ -432,12 +438,67 @@ function formatDateForInput(dateString) {
   }
 }
 
+// Watch for props changes
+watch(() => props.customer, (newCustomer) => {
+  console.log('Customer prop changed:', newCustomer)
+}, { deep: true })
+
+watch(() => props.customerId, (newCustomerId) => {
+  console.log('customerId prop changed:', newCustomerId)
+})
+
 // Actions
-const goBack = () => {
-  if (props.customerType === 'potential') {
-    router.get(`/admin/potential-customers/${props.customer?.id}/payments`)
+const goBackToPotentialCustomer = () => {
+  console.log('goBackToPotentialCustomer called')
+  console.log('Current customer:', props.customer)
+  console.log('Current customerId:', props.customerId)
+  console.log('Current customerType:', props.customerType)
+  
+  // Try multiple approaches to get the correct customer ID
+  let targetCustomerId = null
+  
+  // First, try to get the ID from the customer object
+  if (props.customer?.id) {
+    targetCustomerId = props.customer.id
+    console.log('Using customer.id:', targetCustomerId)
+  }
+  // If not, try the customerId prop
+  else if (props.customerId) {
+    targetCustomerId = props.customerId
+    console.log('Using customerId prop:', targetCustomerId)
+  }
+  // If still not, try to get it from the payment
+  else if (props.payment?.potential_customer_id) {
+    targetCustomerId = props.payment.potential_customer_id
+    console.log('Using payment.potential_customer_id:', targetCustomerId)
+  }
+  else if (props.payment?.customer_id) {
+    targetCustomerId = props.payment.customer_id
+    console.log('Using payment.customer_id:', targetCustomerId)
+  }
+  
+  if (targetCustomerId) {
+    console.log('Navigating to potential customer:', targetCustomerId)
+    
+    // Check if this is a potential customer or regular customer
+    // For potential customers, we use /admin/potential-customers/{id}
+    // For regular customers, we use /admin/customers/{id}
+    
+    if (props.customerType === 'potential') {
+      router.get(`/admin/potential-customers/${targetCustomerId}`)
+    } else {
+      // If it's a customer type but we want to go to potential customer,
+      // we need to find if this customer has a potential_customer_id
+      if (props.customer?.potential_customer_id) {
+        router.get(`/admin/potential-customers/${props.customer.potential_customer_id}`)
+      } else {
+        router.get(`/admin/customers/${targetCustomerId}`)
+      }
+    }
   } else {
-    router.get(`/admin/customers/${props.customer?.id}/payments`)
+    console.error('No customer ID found to navigate back to')
+    // Fallback to potential customers list
+    router.get('/admin/potential-customers')
   }
 }
 
@@ -450,54 +511,68 @@ const submitForm = () => {
     customer_type: props.customerType
   }
   
-  if (props.customerType === 'potential') {
-    router.put(`/admin/potential-customers/${props.customer?.id}/payments/${props.payment?.id}`, formData, {
-      preserveScroll: true,
+  console.log('Submitting form with customerId:', props.customerId)
+  
+  // Always use the potential customer route
+  if (props.customerId) {
+    router.put(`/admin/potential-customers/${props.customerId}/payments/${props.payment?.id}`, formData, {
+      preserveScroll: false,
+      preserveState: false,
       onError: (errors) => {
+        console.error('Form submission error:', errors)
         form.processing = false
       },
       onSuccess: () => {
+        console.log('Form submitted successfully')
         form.processing = false
+        // The controller will redirect back to potential customer
       }
     })
   } else {
-    router.put(`/admin/customers/${props.customer?.id}/payments/${props.payment?.id}`, formData, {
-      preserveScroll: true,
-      onError: (errors) => {
-        form.processing = false
-      },
-      onSuccess: () => {
-        form.processing = false
-      }
-    })
+    console.error('No customerId available for form submission')
+    form.processing = false
   }
 }
 
 const deletePayment = () => {
   if (confirm('Are you sure you want to delete this payment? This action cannot be undone.')) {
-    if (props.customerType === 'potential') {
-      router.delete(`/admin/potential-customers/${props.customer?.id}/payments/${props.payment?.id}`, {
-        preserveScroll: true,
-        onSuccess: () => goBack()
+    console.log('Deleting payment with customerId:', props.customerId)
+    
+    // Always delete using potential customer route
+    if (props.customerId) {
+      router.delete(`/admin/potential-customers/${props.customerId}/payments/${props.payment?.id}`, {
+        preserveScroll: false,
+        preserveState: false,
+        onSuccess: () => {
+          console.log('Payment deleted successfully')
+          // The controller will redirect back to potential customer
+        },
+        onError: (error) => {
+          console.error('Delete payment error:', error)
+        }
       })
     } else {
-      router.delete(`/admin/customers/${props.customer?.id}/payments/${props.payment?.id}`, {
-        preserveScroll: true,
-        onSuccess: () => goBack()
-      })
+      console.error('No customerId available for delete')
     }
   }
 }
 
 // Mounted
 onMounted(() => {
+  console.log('Edit.vue mounted')
+  console.log('Initial props:', {
+    customer: props.customer,
+    customerId: props.customerId,
+    customerType: props.customerType,
+    payment: props.payment
+  })
+  
   // Initialize form with payment data
   if (props.payment) {
     form.amount = props.payment.amount || ''
     form.method = props.payment.method || ''
     form.schedule = props.payment.schedule || ''
     form.payment_date = props.payment.payment_date ? formatDateForInput(props.payment.payment_date) : ''
-    form.reference_number = props.payment.reference_number || ''
     form.remarks = props.payment.remarks || ''
     form.customer_type = props.customerType
   }

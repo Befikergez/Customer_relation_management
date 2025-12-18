@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class PotentialCustomer extends Model
 {
@@ -229,10 +230,13 @@ class PotentialCustomer extends Model
         return $this->payment_date ? $this->payment_date->format('F d, Y') : 'N/A';
     }
     
-    // New method to convert to customer
+    // FIXED METHOD: Convert to customer - removed problematic columns
     public function convertToCustomer($customerData = [])
     {
-        // Default data if not provided
+        // Get the actual columns that exist in the customers table
+        $customerTableColumns = DB::getSchemaBuilder()->getColumnListing('customers');
+        
+        // Basic data that should exist in most customer tables
         $defaultData = [
             'name' => $this->potential_customer_name,
             'email' => $this->email,
@@ -244,38 +248,85 @@ class PotentialCustomer extends Model
             'potential_customer_id' => $this->id,
             'city_id' => $this->city_id,
             'subcity_id' => $this->subcity_id,
-            'status' => 'draft', // Set as draft per controller change
+            'status' => 'draft',
         ];
         
-        if ($this->map_location) {
+        // Add optional fields only if they exist in the table
+        if (in_array('map_location', $customerTableColumns) && $this->map_location) {
             $defaultData['map_location'] = $this->map_location;
         }
-        if ($this->text_location) {
+        
+        if (in_array('text_location', $customerTableColumns) && $this->text_location) {
             $defaultData['text_location'] = $this->text_location;
         }
         
-        // Copy payment data if exists
-        if ($this->payment_amount) {
-            $defaultData['payment_amount'] = $this->payment_amount;
-            $defaultData['payment_method'] = $this->payment_method;
-            $defaultData['payment_schedule'] = $this->payment_schedule;
-            $defaultData['payment_date'] = $this->payment_date;
-            $defaultData['payment_remarks'] = $this->payment_remarks;
-            $defaultData['payment_reference'] = $this->payment_reference;
-            $defaultData['total_payment_amount'] = $this->payment_amount;
+        if (in_array('specific_location', $customerTableColumns) && $this->specific_location) {
+            $defaultData['specific_location'] = $this->specific_location;
         }
         
-        // Merge with any provided data
-        $customerData = array_merge($defaultData, $customerData);
+        // Payment status columns - only add if they exist
+        if (in_array('payment_status', $customerTableColumns)) {
+            $defaultData['payment_status'] = 'not_paid';
+        }
+        
+        if (in_array('commission_status', $customerTableColumns)) {
+            $defaultData['commission_status'] = 'not_applicable';
+        }
+        
+        // Copy payment data if exists and columns exist
+        if ($this->payment_amount) {
+            if (in_array('payment_amount', $customerTableColumns)) {
+                $defaultData['payment_amount'] = $this->payment_amount;
+            }
+            
+            if (in_array('payment_method', $customerTableColumns)) {
+                $defaultData['payment_method'] = $this->payment_method;
+            }
+            
+            if (in_array('payment_schedule', $customerTableColumns)) {
+                $defaultData['payment_schedule'] = $this->payment_schedule;
+            }
+            
+            if (in_array('payment_date', $customerTableColumns)) {
+                $defaultData['payment_date'] = $this->payment_date;
+            }
+            
+            if (in_array('payment_remarks', $customerTableColumns)) {
+                $defaultData['payment_remarks'] = $this->payment_remarks;
+            }
+            
+            if (in_array('payment_reference', $customerTableColumns)) {
+                $defaultData['payment_reference'] = $this->payment_reference;
+            }
+            
+            if (in_array('total_payment_amount', $customerTableColumns)) {
+                $defaultData['total_payment_amount'] = $this->payment_amount;
+            }
+        }
+        
+        // Filter out any columns that don't exist in the customers table
+        $filteredData = [];
+        foreach ($defaultData as $key => $value) {
+            if (in_array($key, $customerTableColumns)) {
+                $filteredData[$key] = $value;
+            }
+        }
+        
+        // Merge with any provided data (also filtered)
+        foreach ($customerData as $key => $value) {
+            if (in_array($key, $customerTableColumns)) {
+                $filteredData[$key] = $value;
+            }
+        }
         
         // Check if customer already exists
         $existingCustomer = Customer::where('email', $this->email)->first();
         
         if ($existingCustomer) {
-            $existingCustomer->update($customerData);
+            $existingCustomer->update($filteredData);
             return $existingCustomer;
         } else {
-            return Customer::create($customerData);
+            return Customer::create($filteredData);
         }
     }
 }

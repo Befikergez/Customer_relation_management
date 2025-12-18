@@ -31,6 +31,9 @@
         <form @submit.prevent="submitForm" class="space-y-6 max-h-[70vh] overflow-y-auto px-6 pb-6">
           <!-- Contract Details -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Customer ID (hidden) -->
+            <input type="hidden" v-model="form.customer_id" />
+            
             <!-- Contract Title -->
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -87,22 +90,7 @@
               </p>
             </div>
 
-            <!-- Proposal ID (Optional) -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Proposal ID (Optional)
-              </label>
-              <input
-                type="text"
-                v-model="form.proposal_id"
-                placeholder="Enter proposal ID if linked"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                :class="{ 'border-red-300': form.errors.proposal_id }"
-              />
-              <p v-if="form.errors.proposal_id" class="mt-1 text-sm text-red-600">
-                {{ form.errors.proposal_id }}
-              </p>
-            </div>
+           
 
             <!-- Start Date -->
             <div>
@@ -170,8 +158,11 @@
                   accept=".pdf,.doc,.docx"
                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
-                <div v-if="form.file" class="text-sm text-gray-600">
-                  {{ typeof form.file === 'string' ? form.file.split('/').pop() : form.file.name }}
+                <div v-if="form.file && typeof form.file === 'string'" class="text-sm text-gray-600">
+                  {{ form.file.split('/').pop() }}
+                </div>
+                <div v-else-if="form.file" class="text-sm text-gray-600">
+                  {{ form.file.name }}
                 </div>
               </div>
               <p v-if="form.errors.file" class="mt-1 text-sm text-red-600">
@@ -210,7 +201,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
+import { router } from '@inertiajs/vue3'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -250,6 +241,7 @@ const closeModal = () => {
 
 // Reset form
 const resetForm = () => {
+  form.customer_id = props.customer?.id || ''
   form.contract_title = ''
   form.contract_description = ''
   form.total_value = ''
@@ -289,53 +281,49 @@ const submitForm = async () => {
   formData.append('end_date', form.end_date)
   formData.append('payment_terms', form.payment_terms)
   formData.append('proposal_id', form.proposal_id || '')
+  formData.append('redirect_to_customer', 'true')
+  
   if (form.file && typeof form.file !== 'string') {
     formData.append('file', form.file)
   }
   
-  // Add redirect parameter to return to customer page
-  formData.append('redirect_to_customer', 'true')
-  
   try {
     if (isEditMode.value) {
-      // Update existing contract
-      await router.put(`/admin/contracts/${props.contract.id}`, formData, {
+      // Use router.patch for updating contracts
+      await router.patch(`/admin/contracts/${props.contract.id}`, formData, {
         preserveScroll: true,
-        preserveState: true,
-        headers: {
-          'Content-Type': 'multipart/form-data'
+        preserveState: false,
+        onSuccess: () => {
+          emit('success', 'Contract updated successfully!')
+          closeModal()
+        },
+        onError: (errors) => {
+          form.processing = false
+          form.errors = errors || {}
+          console.error('Update error:', errors)
         }
       })
-      
-      emit('success', 'Contract updated successfully!')
     } else {
       // Create new contract
       await router.post('/admin/contracts', formData, {
         preserveScroll: true,
-        preserveState: true,
-        headers: {
-          'Content-Type': 'multipart/form-data'
+        preserveState: false,
+        onSuccess: () => {
+          emit('success', 'Contract created successfully!')
+          closeModal()
+        },
+        onError: (errors) => {
+          form.processing = false
+          form.errors = errors || {}
+          console.error('Create error:', errors)
         }
       })
-      
-      emit('success', 'Contract created successfully!')
     }
-    
-    closeModal()
-    // Reload the page to show updated contracts
-    setTimeout(() => {
-      window.location.reload()
-    }, 1500)
     
   } catch (error) {
     form.processing = false
-    if (error.response?.data?.errors) {
-      form.errors = error.response.data.errors
-    } else {
-      console.error('Error:', error)
-      // Show error message
-      alert('An error occurred. Please try again.')
-    }
+    console.error('Form submission error:', error)
+    form.errors = { general: 'An error occurred. Please try again.' }
   }
 }
 
@@ -343,6 +331,28 @@ const submitForm = async () => {
 watch(() => props.isOpen, (isOpen) => {
   if (!isOpen) {
     resetForm()
+  }
+})
+
+// Watch for contract prop changes
+watch(() => props.contract, (newContract) => {
+  if (newContract) {
+    form.customer_id = newContract.customer_id || props.customer?.id || ''
+    form.contract_title = newContract.contract_title || ''
+    form.contract_description = newContract.contract_description || ''
+    form.total_value = newContract.total_value || ''
+    form.start_date = newContract.start_date ? newContract.start_date.split(' ')[0] : ''
+    form.end_date = newContract.end_date ? newContract.end_date.split(' ')[0] : ''
+    form.payment_terms = newContract.payment_terms || ''
+    form.proposal_id = newContract.proposal_id || ''
+    form.file = newContract.file || null
+  }
+})
+
+// Watch for customer prop changes
+watch(() => props.customer, (newCustomer) => {
+  if (newCustomer && !isEditMode.value) {
+    form.customer_id = newCustomer.id || ''
   }
 })
 </script>

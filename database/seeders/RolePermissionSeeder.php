@@ -16,17 +16,20 @@ class RolePermissionSeeder extends Seeder
         'customers',
         'industries',
         'opportunities',
-        'rejected_opportunities', // Changed from 'rejected opportunities'
+        'rejected_opportunities',
         'contracts',
         'proposals',
         'potential_customers',
+        // Settings resources
+        'settings',
+        'search',
     ];
 
     protected $actions = ['view', 'create', 'edit', 'delete', 'approve', 'reject'];
 
     public function run()
     {
-        // Create permissions
+        // Create permissions for all resources
         foreach ($this->resources as $resource) {
             foreach ($this->actions as $action) {
                 // Skip approve/reject for resources that don't need them
@@ -35,11 +38,21 @@ class RolePermissionSeeder extends Seeder
                         // These resources need approve/reject permissions
                         Permission::firstOrCreate(['name' => "{$action} {$resource}"]);
                     }
-                    // Skip for other resources
-                    continue;
+                    // For settings and search, don't create approve/reject permissions
+                    elseif (!in_array($resource, ['settings', 'search'])) {
+                        continue;
+                    }
                 } else {
                     // Create view, create, edit, delete permissions for all resources
-                    Permission::firstOrCreate(['name' => "{$action} {$resource}"]);
+                    // But skip create/edit/delete for settings and search if not applicable
+                    if (in_array($resource, ['settings', 'search'])) {
+                        // For settings and search, only create view permission
+                        if ($action === 'view') {
+                            Permission::firstOrCreate(['name' => "{$action} {$resource}"]);
+                        }
+                    } else {
+                        Permission::firstOrCreate(['name' => "{$action} {$resource}"]);
+                    }
                 }
             }
         }
@@ -72,13 +85,13 @@ class RolePermissionSeeder extends Seeder
             // Proposals
             'view proposals',
             'edit proposals',
-            'approve proposals', // ADDED
-            'reject proposals',  // ADDED
+            'approve proposals',
+            'reject proposals',
             
             // Opportunities
             'view opportunities',
-            'approve opportunities', // ADDED
-            'reject opportunities',  // ADDED
+            'approve opportunities',
+            'reject opportunities',
             
             // Potential Customers
             'view potential_customers',
@@ -87,7 +100,11 @@ class RolePermissionSeeder extends Seeder
             'edit potential_customers',
             
             // Rejected Opportunities
-            'view rejected_opportunities', // FIXED name
+            'view rejected_opportunities',
+            
+            // Settings & Search
+            'view settings',
+            'view search',
         ];
 
         $salesManager->syncPermissions($salesManagerPermissions);
@@ -116,11 +133,11 @@ class RolePermissionSeeder extends Seeder
             'create opportunities',
             'edit opportunities',
             'delete opportunities',
-            'approve opportunities', // ADDED
-            'reject opportunities',  // ADDED
+            'approve opportunities',
+            'reject opportunities',
             
             // Rejected Opportunities
-            'view rejected_opportunities', // FIXED name
+            'view rejected_opportunities',
             
             // Contracts
             'view contracts',
@@ -133,13 +150,16 @@ class RolePermissionSeeder extends Seeder
             'create proposals',
             'edit proposals',
             'delete proposals',
-            'approve proposals', // ADDED
-            'reject proposals',  // ADDED
+            'approve proposals',
+            'reject proposals',
             
             // Potential Customers
             'view potential_customers',
-            'approve potential_customers', // ADDED
-            'reject potential_customers',  // ADDED
+            'approve potential_customers',
+            'reject potential_customers',
+            
+            // Settings & Search
+            'view search', // Salesperson can search but not access settings
         ];
 
         $salesperson->syncPermissions($salespersonPermissions);
@@ -155,6 +175,9 @@ class RolePermissionSeeder extends Seeder
             'view proposals',
             'approve proposals',
             'reject proposals',
+            
+            // Settings & Search - Customers can only search
+            'view search',
         ];
 
         $customer->syncPermissions($customerPermissions);
@@ -167,11 +190,78 @@ class RolePermissionSeeder extends Seeder
     {
         // Add any additional specific permissions that don't fit the pattern
         $additionalPermissions = [
-            // Add any custom permissions here if needed
+            // Dashboard access
+            'view dashboard',
+            
+            // Alternative permission formats for compatibility
+            'settings.view',
+            'search.view',
+            'view_settings',
+            'view_search',
+            'settings.access',
+            'search.access',
+            
+            // Global permissions
+            'access_admin',
+            'view_reports',
+            
+            // User management specific
+            'manage_users',
+            'assign_roles',
+            
+            // Data management
+            'export_data',
+            'import_data',
+            
+            // System operations
+            'clear_cache',
+            'view_logs',
+            'backup_system',
+            
+            // Communication
+            'send_bulk_emails',
+            'manage_templates',
+            
+            // Notifications
+            'manage_notifications',
+            'send_notifications',
         ];
 
         foreach ($additionalPermissions as $permission) {
             Permission::firstOrCreate(['name' => $permission]);
+        }
+        
+        // Assign some additional permissions to roles
+        $superadmin = Role::where('name', 'superadmin')->first();
+        $salesManager = Role::where('name', 'sales_manager')->first();
+        
+        if ($superadmin) {
+            $superadmin->givePermissionTo([
+                'access_admin',
+                'view_reports',
+                'manage_users',
+                'assign_roles',
+                'export_data',
+                'import_data',
+                'clear_cache',
+                'view_logs',
+                'backup_system',
+                'send_bulk_emails',
+                'manage_templates',
+                'manage_notifications',
+                'send_notifications',
+            ]);
+        }
+        
+        if ($salesManager) {
+            $salesManager->givePermissionTo([
+                'access_admin',
+                'view_reports',
+                'export_data',
+                'send_bulk_emails',
+                'manage_templates',
+                'send_notifications',
+            ]);
         }
     }
 }

@@ -64,6 +64,25 @@
             </div>
           </div>
         </div>
+
+        <!-- Flash Messages -->
+        <div v-if="flashMessage" class="px-4 lg:px-6 py-2">
+          <div :class="flashMessageClass" class="rounded-lg p-4 shadow-sm border">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <CheckCircleIcon v-if="flashMessageType === 'success'" class="w-5 h-5 text-green-500" />
+                <ExclamationCircleIcon v-else class="w-5 h-5 text-red-500" />
+                <p class="font-medium">{{ flashMessage }}</p>
+              </div>
+              <button 
+                @click="clearFlashMessage" 
+                class="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon class="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Main Content - Fixed height with overflow -->
@@ -531,6 +550,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Customer Modal -->
+    <EditCustomerModal 
+      v-if="showEditModal"
+      :is-open="showEditModal"
+      :customer="selectedCustomer"
+      :cities="cities"
+      :subcities="subcities"
+      @close="closeEditModal"
+      @success="onEditSuccess"
+    />
   </div>
 </template>
 
@@ -538,6 +568,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
+import EditCustomerModal from '@/Pages/Admin/Customers/EditCustomerModal.vue'
 import {
   EyeIcon,
   UserGroupIcon,
@@ -561,8 +592,9 @@ import {
   MagnifyingGlassIcon,
   CreditCardIcon,
   UserIcon,
-  // Status icons
   CheckCircleIcon,
+  ExclamationCircleIcon,
+  // Status icons
   XCircleIcon,
   DocumentIcon
 } from '@heroicons/vue/24/outline'
@@ -584,6 +616,14 @@ const search = ref(props.filters?.search || '')
 const statusFilter = ref(props.filters?.status || 'all')
 const cityFilter = ref(props.filters?.city_id || '')
 const paymentStatusFilter = ref(props.filters?.payment_status || '')
+
+// Edit Modal State
+const showEditModal = ref(false)
+const selectedCustomer = ref(null)
+
+// Flash Message State
+const flashMessage = ref('')
+const flashMessageType = ref('success')
 
 // Status filters
 const statusFilters = [
@@ -710,6 +750,12 @@ const filteredCustomers = computed(() => {
   }
   
   return filtered
+})
+
+const flashMessageClass = computed(() => {
+  return flashMessageType.value === 'success'
+    ? 'bg-green-50 border-green-200 text-green-800'
+    : 'bg-red-50 border-red-200 text-red-800'
 })
 
 // Helper methods
@@ -850,6 +896,43 @@ function formatNumber(num) {
   return parseFloat(num).toFixed(2)
 }
 
+// Flash message methods
+const clearFlashMessage = () => {
+  flashMessage.value = ''
+  flashMessageType.value = 'success'
+}
+
+const showFlashMessage = (msg, type = 'success') => {
+  flashMessage.value = msg
+  flashMessageType.value = type
+  
+  setTimeout(() => {
+    clearFlashMessage()
+  }, 5000)
+}
+
+// Edit Modal methods
+const editCustomer = (customer) => {
+  if (customer?.id) {
+    selectedCustomer.value = customer
+    showEditModal.value = true
+  }
+}
+
+const closeEditModal = () => {
+  showEditModal.value = false
+  selectedCustomer.value = null
+}
+
+const onEditSuccess = (message) => {
+  showFlashMessage(message || 'Customer updated successfully!', 'success')
+  
+  // Refresh the page to get updated data
+  setTimeout(() => {
+    router.reload({ preserveScroll: true, preserveState: false })
+  }, 1500)
+}
+
 // Navigation methods
 const visitPage = (url) => {
   if (url) {
@@ -900,12 +983,6 @@ const viewCustomerDetails = (customer) => {
   }
 }
 
-const editCustomer = (customer) => {
-  if (customer?.id) {
-    router.get(`/admin/customers/${customer.id}/edit`)
-  }
-}
-
 const deleteCustomer = (customerId) => {
   if (confirm('Are you sure you want to delete this customer?')) {
     loading.value = true
@@ -913,11 +990,12 @@ const deleteCustomer = (customerId) => {
       preserveScroll: true,
       onSuccess: () => {
         loading.value = false
-        router.reload()
+        showFlashMessage('Customer deleted successfully!', 'success')
+        router.reload({ preserveScroll: true, preserveState: false })
       },
       onError: () => {
         loading.value = false
-        alert('Failed to delete customer. Please try again.')
+        showFlashMessage('Failed to delete customer. Please try again.', 'error')
       }
     })
   }

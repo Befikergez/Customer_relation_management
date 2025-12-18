@@ -139,7 +139,7 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // ==========================
-        // CUSTOMERS ROUTES - UPDATED
+        // CUSTOMERS ROUTES - UPDATED WITH GET REJECT FORM
         // ==========================
         Route::prefix('customers')->name('customers.')->group(function () {
             // Main customers list - This is the route for /admin/customers
@@ -155,17 +155,23 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{customer}', [CustomerController::class, 'update'])->name('update');
             Route::delete('/{customer}', [CustomerController::class, 'destroy'])->name('destroy');
             
-            // ==========================
-            // CUSTOMER STATUS ROUTES
-            // ==========================
-            
             // Customer approval/rejection
             Route::post('/{customer}/approve', [CustomerController::class, 'approve'])->name('approve');
+            
+            // ADDED: GET route for reject form
+            Route::get('/{customer}/reject', [CustomerController::class, 'showRejectForm'])->name('reject.form');
+            // POST route for reject action
             Route::post('/{customer}/reject', [CustomerController::class, 'reject'])->name('reject');
             
-            // ==========================
-            // PAYMENT ROUTES
-            // ==========================
+            // NEW API ROUTES FOR INLINE EDITING
+            Route::post('/{customer}/update-payment-info', [CustomerController::class, 'updatePaymentInfo'])->name('update-payment-info');
+            Route::post('/{customer}/update-commission-info', [CustomerController::class, 'updateCommissionInfo'])->name('update-commission-info');
+            
+            // Get commission users
+            Route::get('/{customer}/commission-users', [CustomerController::class, 'getCommissionUsers'])->name('commission-users');
+            
+            // From potential customer
+            Route::post('/create-from-potential/{potentialCustomerId}', [CustomerController::class, 'createFromPotential'])->name('create-from-potential');
             
             // Payment management
             Route::get('/{customer}/payments/create', [CustomerController::class, 'createPayment'])->name('payments.create');
@@ -175,25 +181,19 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{customer}/update-payment-status', [CustomerController::class, 'updatePaymentStatus'])->name('update-payment-status');
             Route::post('/{customer}/update-commission-status', [CustomerController::class, 'updateCommissionStatus'])->name('update-commission-status');
             
-            // ==========================
-            // LOCATION FILTER ROUTES
-            // ==========================
+            // Location filter routes
             Route::get('/city/{cityId}', [CustomerController::class, 'getByCity'])->name('by-city');
             Route::get('/subcity/{subcityId}', [CustomerController::class, 'getBySubcity'])->name('by-subcity');
             Route::get('/cities/{cityId}/subcities', [CustomerController::class, 'getSubcitiesByCity'])->name('subcities-by-city');
             Route::get('/location-data', [CustomerController::class, 'getLocationData'])->name('location-data');
             Route::get('/filter-by-location', [CustomerController::class, 'filterByLocation'])->name('filter-by-location');
             
-            // ==========================
-            // CUSTOMER TO CONTRACT ROUTES
-            // ==========================
-            
-            // Create contract from customer (Modal-based)
+            // Create contract from customer
             Route::post('/{customer}/contracts', [ContractController::class, 'store'])->name('contracts.store');
             Route::get('/{customer}/proposals', [CustomerController::class, 'getCustomerProposals'])->name('proposals');
         });
 
-        // POTENTIAL CUSTOMERS - FIXED PARAMETER NAMES
+        // POTENTIAL CUSTOMERS
         Route::prefix('potential-customers')->name('potential-customers.')->group(function () {
             Route::get('/', [PotentialCustomerController::class, 'index'])->name('index');
             Route::get('/create', [PotentialCustomerController::class, 'create'])->name('create');
@@ -203,7 +203,7 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{id}', [PotentialCustomerController::class, 'update'])->name('update');
             Route::delete('/{id}', [PotentialCustomerController::class, 'destroy'])->name('destroy');
             
-            // Customer approval/rejection
+            // CRITICAL FIX: Approve and reject routes must be POST
             Route::post('/{id}/approve', [PotentialCustomerController::class, 'approve'])->name('approve');
             Route::post('/{id}/reject', [PotentialCustomerController::class, 'reject'])->name('reject');
             Route::post('/{id}/approve-with-payment', [PotentialCustomerController::class, 'approveWithPayment'])->name('approve-with-payment');
@@ -221,6 +221,14 @@ Route::middleware(['auth'])->group(function () {
             
             // Dropdown list
             Route::get('/dropdown/list', [PotentialCustomerController::class, 'getPotentialCustomers'])->name('dropdown');
+            
+            // Payment routes for potential customers
+            Route::get('/{id}/payments', [PaymentController::class, 'index'])->name('payments.index');
+            Route::get('/{id}/payments/create', [PaymentController::class, 'create'])->name('payments.create');
+            Route::post('/{id}/payments', [PaymentController::class, 'store'])->name('payments.store');
+            Route::get('/{id}/payments/{payment}/edit', [PaymentController::class, 'edit'])->name('payments.edit');
+            Route::put('/{id}/payments/{payment}', [PaymentController::class, 'update'])->name('payments.update');
+            Route::delete('/{id}/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
         });
 
         // OPPORTUNITIES
@@ -247,21 +255,20 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/api/stats', [RejectedOpportunitiesController::class, 'getStats'])->name('stats');
         });
 
-        // ==========================
-        // CONTRACTS ROUTES - MODAL-BASED
-        // ==========================
+        // CONTRACTS ROUTES - FIXED WITH BOTH PUT AND PATCH
         Route::prefix('contracts')->name('contracts.')->group(function () {
             // Main contracts page
             Route::get('/', [ContractController::class, 'index'])->name('index');
             
-            // Contract creation from customer (traditional route)
+            // Contract creation
             Route::get('/create', [ContractController::class, 'create'])->name('create');
             
-            // Contract CRUD operations
+            // Contract CRUD operations - Support both PUT and PATCH
             Route::post('/', [ContractController::class, 'store'])->name('store');
             Route::get('/{contract}', [ContractController::class, 'show'])->name('show');
             Route::get('/{contract}/edit', [ContractController::class, 'edit'])->name('edit');
-            Route::put('/{contract}', [ContractController::class, 'update'])->name('update');
+            Route::patch('/{contract}', [ContractController::class, 'update'])->name('update'); // PATCH for Vue router.patch()
+            Route::put('/{contract}', [ContractController::class, 'update'])->name('update.put'); // PUT for form submissions
             Route::delete('/{contract}', [ContractController::class, 'destroy'])->name('destroy');
             
             // Contract status actions
@@ -291,11 +298,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{proposal}/download', [ProposalController::class, 'download'])->name('download');
         });
 
-        // ==========================
-        // PAYMENT CONTROLLER ROUTES
-        // ==========================
-        
-        // PAYMENT ROUTES FOR POTENTIAL CUSTOMERS - FIXED PARAMETER NAMES
+        // PAYMENT ROUTES FOR POTENTIAL CUSTOMERS
         Route::prefix('potential-customers/{id}/payments')->name('potential-customers.payments.')->group(function () {
             Route::get('/', [PaymentController::class, 'index'])->name('index');
             Route::get('/create', [PaymentController::class, 'create'])->name('create');
@@ -315,7 +318,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/{payment}', [PaymentController::class, 'destroy'])->name('destroy');
         });
 
-        // GLOBAL PAYMENT ROUTES
+        // GLOBAL PAYMENT ROUTES - FIXED: Added missing DELETE and EDIT routes
         Route::prefix('payments')->name('payments.')->group(function () {
             Route::get('/', [PaymentController::class, 'index'])->name('index');
             Route::get('/recent', [PaymentController::class, 'recent'])->name('recent');
@@ -323,13 +326,25 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/overdue', [PaymentController::class, 'overdue'])->name('overdue');
             Route::get('/summary', [PaymentController::class, 'summary'])->name('summary');
             
+            // NEW PAYMENT TRANSFER ROUTE
+            Route::post('/transfer/{customerId}', [PaymentController::class, 'transferPayments'])->name('transfer');
+            
             // Payment commission routes
             Route::post('/{payment}/mark-commission-as-paid', [PaymentController::class, 'markCommissionAsPaid'])->name('mark-commission-as-paid');
             Route::post('/{payment}/mark-commission-as-unpaid', [PaymentController::class, 'markCommissionAsUnpaid'])->name('mark-commission-as-unpaid');
             
-            // Sync payments route - FIXED PARAMETER NAME
+            // Sync payments route
             Route::post('/sync-to-customer/{id}', [PaymentController::class, 'syncPaymentsToCustomer'])
                 ->name('sync-to-customer');
+            
+            // CRITICAL FIX: Add missing global payment routes for individual payments
+            // These are needed when accessing payments directly without customer context
+            Route::get('/{payment}/edit', [PaymentController::class, 'globalEdit'])->name('edit');
+            Route::put('/{payment}', [PaymentController::class, 'globalUpdate'])->name('update');
+            Route::delete('/{payment}', [PaymentController::class, 'globalDestroy'])->name('destroy');
+            
+            // Optionally add a show route if needed
+            Route::get('/{payment}', [PaymentController::class, 'show'])->name('show');
         });
 
         // NOTIFICATIONS
@@ -463,5 +478,24 @@ Route::get('/debug/role-check', function() {
                 'guard_name' => $role->guard_name
             ];
         })
+    ]);
+})->middleware('auth');
+
+Route::get('/debug/customer/{id}', function($id) {
+    $customer = \App\Models\Customer::find($id);
+    
+    if (!$customer) {
+        return response()->json(['error' => 'Customer not found']);
+    }
+    
+    return response()->json([
+        'id' => $customer->id,
+        'name' => $customer->name,
+        'status' => $customer->status,
+        'rejected_at' => $customer->rejected_at,
+        'rejection_reason' => $customer->rejection_reason,
+        'rejected_by' => $customer->rejected_by,
+        'created_at' => $customer->created_at,
+        'updated_at' => $customer->updated_at,
     ]);
 })->middleware('auth');

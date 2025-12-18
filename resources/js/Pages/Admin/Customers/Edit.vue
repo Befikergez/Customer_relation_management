@@ -54,7 +54,7 @@
               </button>
               <div>
                 <h1 class="text-2xl font-bold text-gray-900">Edit Customer</h1>
-                <p class="text-gray-600 mt-1">Update customer information and details</p>
+                <p class="text-gray-600 mt-1">Update customer basic information only</p>
               </div>
             </div>
             <div class="flex items-center space-x-3">
@@ -84,6 +84,20 @@
                 >
                   <XMarkIcon class="w-5 h-5" />
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Information Note -->
+          <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex items-start space-x-3">
+              <InformationCircleIcon class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 class="text-sm font-semibold text-blue-900">Note:</h3>
+                <p class="text-sm text-blue-700 mt-1">
+                  This page is for editing customer basic information only. 
+                  Payment and commission details can be edited directly from the customer details page.
+                </p>
               </div>
             </div>
           </div>
@@ -221,135 +235,6 @@
                   </div>
                 </div>
 
-                <!-- Payment Information -->
-                <div>
-                  <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
-                      <CreditCardIcon class="w-4 h-4 text-white" />
-                    </div>
-                    <span>Payment Information</span>
-                  </h3>
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label for="total_payment_amount" class="block text-sm font-medium text-gray-700 mb-2">Total Amount *</label>
-                      <input
-                        id="total_payment_amount"
-                        v-model="form.total_payment_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                        :class="{'border-red-300': form.errors.total_payment_amount}"
-                      />
-                      <p v-if="form.errors.total_payment_amount" class="mt-1 text-sm text-red-600">{{ form.errors.total_payment_amount }}</p>
-                    </div>
-
-                    <div>
-                      <label for="paid_amount" class="block text-sm font-medium text-gray-700 mb-2">Paid Amount</label>
-                      <input
-                        id="paid_amount"
-                        v-model="form.paid_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        :class="{'border-red-300': form.errors.paid_amount}"
-                        @input="calculateRemaining"
-                      />
-                      <p v-if="form.errors.paid_amount" class="mt-1 text-sm text-red-600">{{ form.errors.paid_amount }}</p>
-                    </div>
-
-                    <div>
-                      <label for="remaining_amount" class="block text-sm font-medium text-gray-700 mb-2">Remaining Amount</label>
-                      <input
-                        id="remaining_amount"
-                        v-model="form.remaining_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-                        :class="{'border-red-300': form.errors.remaining_amount}"
-                        readonly
-                      />
-                      <p v-if="form.errors.remaining_amount" class="mt-1 text-sm text-red-600">{{ form.errors.remaining_amount }}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Commission Information -->
-                <div>
-                  <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <div class="w-8 h-8 bg-gradient-to-r from-teal-500 to-teal-600 rounded-lg flex items-center justify-center mr-3">
-                      <UserIcon class="w-4 h-4 text-white" />
-                    </div>
-                    <span>Commission Information</span>
-                  </h3>
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label for="commission_user_id" class="block text-sm font-medium text-gray-700 mb-2">Commission User</label>
-                      <select
-                        id="commission_user_id"
-                        v-model="form.commission_user_id"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        :class="{'border-red-300': form.errors.commission_user_id}"
-                        @change="onCommissionUserChange"
-                      >
-                        <option value="">Select Commission User</option>
-                        <option v-for="user in commissionUsers" :key="user.id" :value="user.id">
-                          {{ user.name }} ({{ user.commission_rate }}%)
-                        </option>
-                      </select>
-                      <p v-if="form.errors.commission_user_id" class="mt-1 text-sm text-red-600">{{ form.errors.commission_user_id }}</p>
-                    </div>
-
-                    <div>
-                      <label for="commission_rate" class="block text-sm font-medium text-gray-700 mb-2">Commission Rate (%)</label>
-                      <input
-                        id="commission_rate"
-                        v-model="form.commission_rate"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        :class="{'border-red-300': form.errors.commission_rate}"
-                        @input="calculateCommission"
-                      />
-                      <p v-if="form.errors.commission_rate" class="mt-1 text-sm text-red-600">{{ form.errors.commission_rate }}</p>
-                    </div>
-
-                    <div>
-                      <label for="commission_amount" class="block text-sm font-medium text-gray-700 mb-2">Total Commission</label>
-                      <input
-                        id="commission_amount"
-                        v-model="form.commission_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        :class="{'border-red-300': form.errors.commission_amount}"
-                        readonly
-                      />
-                      <p v-if="form.errors.commission_amount" class="mt-1 text-sm text-red-600">{{ form.errors.commission_amount }}</p>
-                    </div>
-
-                    <div>
-                      <label for="paid_commission" class="block text-sm font-medium text-gray-700 mb-2">Paid Commission</label>
-                      <input
-                        id="paid_commission"
-                        v-model="form.paid_commission"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        :class="{'border-red-300': form.errors.paid_commission}"
-                      />
-                      <p v-if="form.errors.paid_commission" class="mt-1 text-sm text-red-600">{{ form.errors.paid_commission }}</p>
-                    </div>
-                  </div>
-                </div>
-
                 <!-- Remarks -->
                 <div>
                   <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -385,12 +270,31 @@
                     :disabled="form.processing"
                     class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 disabled:from-teal-400 disabled:to-teal-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 text-sm shadow hover:shadow-lg disabled:cursor-not-allowed"
                   >
-                    <span v-if="form.processing">Saving...</span>
+                    <span v-if="form.processing">
+                      <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </span>
                     <span v-else>Save Changes</span>
                   </button>
                 </div>
               </div>
             </form>
+          </div>
+
+          <!-- Loading Overlay -->
+          <div v-if="loading" class="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+              <div class="flex items-center space-x-3">
+                <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-gray-700">Processing...</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -399,7 +303,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import {
@@ -410,30 +314,50 @@ import {
   ExclamationCircleIcon,
   UserCircleIcon,
   MapPinIcon,
-  CreditCardIcon,
-  UserIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  InformationCircleIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
-  customer: Object,
-  cities: Array,
-  subcities: Array,
-  commissionUsers: Array,
-  tables: Array,
-  permissions: Object,
-  flash: Object,
-  errors: Object
+  customer: {
+    type: Object,
+    required: true
+  },
+  cities: {
+    type: Array,
+    default: () => []
+  },
+  subcities: {
+    type: Array,
+    default: () => []
+  },
+  tables: {
+    type: Array,
+    default: () => []
+  },
+  permissions: {
+    type: Object,
+    default: () => ({})
+  },
+  flash: {
+    type: Object,
+    default: () => ({})
+  },
+  errors: {
+    type: Object,
+    default: () => ({})
+  }
 })
 
 // State
 const mobileSidebarOpen = ref(false)
+const loading = ref(false)
 
 // Flash message state
 const flashMessage = ref(props.flash?.message || '')
 const flashMessageType = ref(props.flash?.type || 'success')
 
-// Form
+// Form - Only basic customer information
 const form = reactive({
   name: props.customer?.name || '',
   email: props.customer?.email || '',
@@ -444,15 +368,9 @@ const form = reactive({
   location: props.customer?.location || '',
   specific_location: props.customer?.specific_location || '',
   remarks: props.customer?.remarks || '',
-  total_payment_amount: props.customer?.total_payment_amount || 0,
-  paid_amount: props.customer?.paid_amount || 0,
-  remaining_amount: props.customer?.remaining_amount || 0,
-  commission_user_id: props.customer?.commission_user_id || '',
-  commission_rate: props.customer?.commission_rate || 0,
-  commission_amount: props.customer?.commission_amount || 0,
-  paid_commission: props.customer?.paid_commission || 0,
+  is_basic_update: true, // IMPORTANT: This tells the backend it's a basic update
   processing: false,
-  errors: props.errors || {}
+  errors: {}
 })
 
 // Filtered subcities
@@ -501,51 +419,15 @@ const loadSubcities = () => {
   filteredSubcities.value = props.subcities.filter(subcity => 
     subcity.city_id == form.city_id
   )
-  form.subcity_id = ''
-}
-
-// Calculate remaining amount
-const calculateRemaining = () => {
-  const total = parseFloat(form.total_payment_amount) || 0
-  const paid = parseFloat(form.paid_amount) || 0
-  form.remaining_amount = Math.max(0, total - paid)
-}
-
-// Calculate commission amount
-const calculateCommission = () => {
-  const total = parseFloat(form.total_payment_amount) || 0
-  const rate = parseFloat(form.commission_rate) || 0
-  form.commission_amount = (total * rate) / 100
-}
-
-// When commission user changes, set their commission rate
-const onCommissionUserChange = () => {
-  if (form.commission_user_id) {
-    const user = props.commissionUsers.find(u => u.id == form.commission_user_id)
-    if (user) {
-      form.commission_rate = user.commission_rate || 0
-      calculateCommission()
+  
+  // Only reset subcity_id if the current one doesn't belong to the selected city
+  if (form.subcity_id) {
+    const currentSubcity = filteredSubcities.value.find(sub => sub.id == form.subcity_id)
+    if (!currentSubcity) {
+      form.subcity_id = ''
     }
-  } else {
-    form.commission_rate = 0
-    form.commission_amount = 0
-    form.paid_commission = 0
   }
 }
-
-// Watch for changes to calculate automatically
-watch(() => form.total_payment_amount, () => {
-  calculateRemaining()
-  calculateCommission()
-})
-
-watch(() => form.paid_amount, () => {
-  calculateRemaining()
-})
-
-watch(() => form.commission_rate, () => {
-  calculateCommission()
-})
 
 // Initialize filtered subcities
 watch(() => form.city_id, (cityId) => {
@@ -554,32 +436,50 @@ watch(() => form.city_id, (cityId) => {
   }
 }, { immediate: true })
 
+// Main submit function
 const submit = () => {
-  form.processing = true
+  // Clear previous errors
   form.errors = {}
+  flashMessage.value = ''
+  loading.value = true
+  form.processing = true
   
-  // Ensure calculations are up to date
-  calculateRemaining()
-  calculateCommission()
-  
-  router.put(`/admin/customers/${props.customer.id}`, form, {
-    preserveScroll: true,
-    onSuccess: () => {
+  // Use Inertia's router with proper redirect handling
+  router.put(`/admin/customers/${props.customer.id}`, {
+    name: form.name,
+    email: form.email,
+    phone: form.phone,
+    status: form.status,
+    city_id: form.city_id,
+    subcity_id: form.subcity_id,
+    location: form.location,
+    specific_location: form.specific_location,
+    remarks: form.remarks,
+    is_basic_update: true
+  }, {
+    preserveScroll: false, // Don't preserve scroll when redirecting
+    preserveState: false, // Don't preserve state when redirecting
+    onSuccess: (page) => {
+      // Success - redirect will happen automatically
+      loading.value = false
       form.processing = false
-      flashMessage.value = 'Customer updated successfully!'
-      flashMessageType.value = 'success'
     },
     onError: (errors) => {
-      form.processing = false
-      form.errors = errors
+      form.errors = errors || {}
       flashMessage.value = 'Please fix the errors below.'
       flashMessageType.value = 'error'
+      
+      loading.value = false
+      form.processing = false
+    },
+    onFinish: () => {
+      loading.value = false
+      form.processing = false
     }
   })
 }
 
-// Initialize form with customer data
-import { onMounted } from 'vue'
+// Mounted
 onMounted(() => {
   if (props.flash?.message) {
     flashMessage.value = props.flash.message
@@ -590,5 +490,58 @@ onMounted(() => {
   if (form.city_id) {
     loadSubcities()
   }
+  
+  // Initialize errors from props
+  if (props.errors) {
+    form.errors = props.errors
+  }
 })
 </script>
+
+<style scoped>
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fixed {
+  position: fixed;
+}
+
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.bg-opacity-50 {
+  --tw-bg-opacity: 0.5;
+}
+
+.z-50 {
+  z-index: 50;
+}
+
+.disabled\:from-teal-400:disabled {
+  --tw-gradient-from: #2dd4bf var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(45 212 191 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.disabled\:to-teal-400:disabled {
+  --tw-gradient-to: #2dd4bf var(--tw-gradient-to-position);
+}
+
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+</style>
