@@ -7,8 +7,9 @@
       <div class="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-blue-400 to-teal-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
       <div class="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-teal-400 to-blue-500 rounded-full blur-3xl opacity-30 animate-bounce"></div>
       
-      <!-- Fixed Header -->
-      <div class="bg-white/90 backdrop-blur-sm border-b-2 border-blue-500/30 px-4 sm:px-6 lg:px-8 py-4 fixed top-0 left-0 right-0 lg:left-64 z-40 shadow-lg">
+      <!-- Fixed Header - Z-index lowered for mobile -->
+      <div class="bg-white/90 backdrop-blur-sm border-b-2 border-blue-500/30 px-4 sm:px-6 lg:px-8 py-4 fixed top-0 left-0 right-0 lg:left-64 shadow-lg transition-all duration-300"
+           :class="isMobile ? 'z-20' : 'z-40'">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
           <!-- Title Section -->
           <div class="flex items-center space-x-3 lg:space-x-4 flex-1 min-w-0">
@@ -41,8 +42,8 @@
         </div>
       </div>
 
-      <!-- Main Content -->
-      <div class="flex-1 pt-20 lg:pt-24 relative z-10">
+      <!-- Main Content with increased top padding -->
+      <div class="flex-1 pt-40 md:pt-32 lg:pt-28 relative z-10">
         <div class="p-4 sm:p-6 lg:p-8">
           <div class="max-w-4xl mx-auto">
             <div class="bg-blue-50/30 backdrop-blur-sm rounded-xl lg:rounded-2xl border-2 border-blue-100/50 p-6 lg:p-8 shadow-xl shadow-slate-500/10">
@@ -210,6 +211,7 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
 import { router } from '@inertiajs/vue3'
+import { ref, onMounted, onUnmounted } from 'vue'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import { 
   ArrowLeftIcon, 
@@ -247,6 +249,22 @@ const form = useForm({
   remarks: '',
   city_id: '',
   subcity_id: ''
+})
+
+const isMobile = ref(false)
+
+// Check screen size
+const checkScreenSize = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+onMounted(() => {
+  checkScreenSize()
+  window.addEventListener('resize', checkScreenSize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkScreenSize)
 })
 
 const debugMapLocation = () => {
@@ -288,5 +306,17 @@ const goBack = () => {
   transition-property: all;
   transition-duration: 300ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .fixed.top-0 {
+    left: 0 !important;
+  }
+  
+  /* Increased spacing for mobile */
+  .pt-40 {
+    padding-top: 10rem;
+  }
 }
 </style>

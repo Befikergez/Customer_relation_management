@@ -18,6 +18,8 @@ class Customer extends Model
         'phone',
         'location',
         'specific_location',
+        'text_location', 
+        'map_location',
         'remarks',
         'status',
         'created_by',

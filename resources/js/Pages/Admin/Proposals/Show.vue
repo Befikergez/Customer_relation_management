@@ -1,130 +1,186 @@
 <template>
-  <div class="min-h-screen bg-slate-50 flex">
+  <div class="min-h-screen bg-gray-50 flex">
+    <!-- Sidebar - With hamburger menu -->
     <Sidebar :tables="tables" />
     
-    <div class="flex-1">
-      <div class="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50">
-        <!-- Header -->
-        <div class="bg-white border-b border-teal-200 px-4 sm:px-6 py-4 sm:py-6">
-          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">Proposal Details</h1>
-              <p class="text-slate-600 mt-1 sm:mt-2 text-sm sm:text-base">Review proposal information and manage status</p>
-            </div>
-            <button 
-              @click="goBackToCustomer"
-              class="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg w-fit"
+    <div class="flex-1 min-w-0 flex flex-col overflow-hidden w-full">
+      <!-- Header with hamburger menu for mobile -->
+      <div class="sticky top-0 z-40 bg-white shadow-sm border-b border-gray-200">
+        <!-- Mobile Header with Hamburger -->
+        <div class="lg:hidden">
+          <div class="flex items-center justify-between px-4 py-3">
+            <!-- Hamburger Menu Button -->
+            <button
+              @click="toggleSidebar"
+              class="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              aria-label="Toggle sidebar"
             >
-              <ArrowLeftIcon class="w-4 h-4" />
-              <span class="text-sm">Back to Customer</span>
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
+            
+            <!-- Center: Title -->
+            <div class="flex-1 text-center min-w-0">
+              <h1 class="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2 truncate">
+                <span class="truncate">Proposal Details</span>
+                <div class="w-5 h-5 bg-gradient-to-r from-blue-400/30 to-purple-400/30 rounded flex items-center justify-center flex-shrink-0">
+                  <DocumentTextIcon class="w-3 h-3 text-blue-600/70" />
+                </div>
+              </h1>
+            </div>
+            
+            <!-- Right spacer for balance -->
+            <div class="w-10"></div>
           </div>
         </div>
 
-        <!-- Loading State -->
-        <div v-if="!proposal" class="flex items-center justify-center p-8">
-          <div class="text-center">
-            <div class="w-16 h-16 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p class="text-slate-600">Loading proposal details...</p>
-          </div>
-        </div>
-
-        <!-- Content -->
-        <div v-else class="p-4 sm:p-6">
-          <div class="max-w-6xl mx-auto">
-            <div class="bg-white rounded-lg border border-teal-200 overflow-hidden">
-              <!-- Header Banner -->
-              <div class="bg-gradient-to-r from-teal-600 to-blue-600 text-white p-4 sm:p-6 md:p-8">
-                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 sm:gap-0">
-                  <div class="flex items-center space-x-3 sm:space-x-4">
-                    <div class="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                      <DocumentTextIcon class="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-                    </div>
-                    <div>
-                      <h2 class="text-xl sm:text-2xl md:text-3xl font-bold">{{ proposal.title || 'Untitled Proposal' }}</h2>
-                      <p class="text-teal-100 mt-1 sm:mt-2 text-sm sm:text-lg">Proposal for: {{ proposal.potential_customer?.potential_customer_name || 'Unknown Customer' }}</p>
-                    </div>
-                  </div>
-                  <span :class="getProposalStatusBadgeClass(proposal)" class="px-3 py-2 sm:px-6 sm:py-3 rounded-full text-sm sm:text-lg font-semibold border border-white/30 w-fit">
-                    {{ formatProposalStatus(proposal) }}
-                  </span>
+        <!-- Desktop Header -->
+        <div class="hidden lg:block">
+          <div class="px-6 py-4">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <div class="flex items-center space-x-4">
+                <button 
+                  type="button"
+                  @click="goBackToCustomer"
+                  class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+                >
+                  <ArrowLeftIcon class="w-4 h-4" />
+                  <span>Back to Customer</span>
+                </button>
+                <div>
+                  <h1 class="text-2xl font-bold text-gray-900">Proposal Details</h1>
+                  <p class="text-gray-600 mt-1">Review proposal information and manage status</p>
                 </div>
               </div>
+              <div class="flex items-center space-x-3">
+                <span :class="getProposalStatusBadgeClass(proposal)" class="px-4 py-2 rounded-full text-sm font-semibold">
+                  {{ formatProposalStatus(proposal) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              <!-- Content -->
-              <div class="p-4 sm:p-6 md:p-8">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+      <!-- Main Content -->
+      <div class="flex-1 overflow-auto">
+        <div class="p-3 md:p-4 lg:p-6">
+          <div class="max-w-7xl mx-auto">
+            <!-- Loading State -->
+            <div v-if="!proposal" class="flex items-center justify-center p-8">
+              <div class="text-center">
+                <div class="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-gray-600">Loading proposal details...</p>
+              </div>
+            </div>
+
+            <!-- Proposal Content -->
+            <div v-else class="space-y-6">
+              <!-- Proposal Overview Card -->
+              <div class="bg-white rounded-xl md:rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center">
+                      <DocumentTextIcon class="w-6 h-6 md:w-8 md:h-8 text-white" />
+                    </div>
+                    <div class="min-w-0">
+                      <h2 class="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 truncate">{{ proposal.title || 'Untitled Proposal' }}</h2>
+                      <p class="text-gray-600 text-xs md:text-sm mt-1 truncate">
+                        For: {{ proposal.potential_customer?.potential_customer_name || 'Unknown Customer' }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <span :class="getProposalStatusBadgeClass(proposal)" class="px-4 py-2 rounded-full text-sm font-semibold w-fit">
+                      {{ formatProposalStatus(proposal) }}
+                    </span>
+                    <button 
+                      @click="goBackToCustomer"
+                      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 text-sm whitespace-nowrap"
+                    >
+                      <ArrowLeftIcon class="w-4 h-4" />
+                      <span>Back to Customer</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Proposal Details Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                   <!-- Proposal Information -->
-                  <div class="space-y-4 sm:space-y-6">
-                    <h3 class="text-lg sm:text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2 sm:pb-3">Proposal Information</h3>
+                  <div class="space-y-4 md:space-y-6">
+                    <h3 class="text-base md:text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Proposal Information</h3>
                     
                     <div>
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Title</p>
-                      <p class="text-base sm:text-lg font-semibold text-slate-900">{{ proposal.title || 'Not provided' }}</p>
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Title</label>
+                      <p class="text-gray-900 font-medium text-sm md:text-base">{{ proposal.title || 'Not provided' }}</p>
                     </div>
 
                     <div>
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Description</p>
-                      <p class="text-base sm:text-lg text-slate-900 leading-relaxed">{{ proposal.description || 'No description provided' }}</p>
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Description</label>
+                      <p class="text-gray-700 bg-gray-50 rounded-lg p-3 md:p-4 text-sm md:text-base">
+                        {{ proposal.description || 'No description provided' }}
+                      </p>
                     </div>
 
                     <div>
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Price</p>
-                      <p class="text-base sm:text-lg font-semibold text-slate-900">${{ proposal.price || '0.00' }}</p>
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Price</label>
+                      <p class="text-gray-900 font-bold text-base md:text-lg">${{ proposal.price || '0.00' }}</p>
                     </div>
 
                     <div v-if="proposal.file">
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Attached File</p>
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Attached File</label>
                       <div class="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                         <DocumentIcon class="w-5 h-5 text-blue-600" />
-                        <span class="text-sm text-slate-700 flex-1">{{ getFileName(proposal.file) }}</span>
+                        <span class="text-sm text-gray-700 flex-1 truncate">{{ getFileName(proposal.file) }}</span>
                         <button
                           @click="downloadProposalFile(proposal.id)"
-                          class="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors font-medium"
+                          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center space-x-1 whitespace-nowrap"
                         >
-                          Download
+                          <ArrowDownTrayIcon class="w-3 h-3" />
+                          <span>Download</span>
                         </button>
                       </div>
                     </div>
                   </div>
 
                   <!-- Customer Information -->
-                  <div class="space-y-4 sm:space-y-6">
-                    <h3 class="text-lg sm:text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2 sm:pb-3">Customer Information</h3>
+                  <div class="space-y-4 md:space-y-6">
+                    <h3 class="text-base md:text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Customer Information</h3>
                     
                     <div>
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Customer Name</p>
-                      <p class="text-base sm:text-lg font-semibold text-slate-900">{{ proposal.potential_customer?.potential_customer_name || 'Not provided' }}</p>
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Customer Name</label>
+                      <p class="text-gray-900 font-medium text-sm md:text-base truncate">{{ proposal.potential_customer?.potential_customer_name || 'Not provided' }}</p>
                     </div>
 
                     <div>
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Email Address</p>
-                      <p class="text-base sm:text-lg font-semibold text-slate-900">{{ proposal.potential_customer?.email || 'Not provided' }}</p>
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Email Address</label>
+                      <p class="text-gray-900 font-medium text-sm md:text-base truncate">{{ proposal.potential_customer?.email || 'Not provided' }}</p>
                     </div>
 
                     <div>
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Phone Number</p>
-                      <p class="text-base sm:text-lg font-semibold text-slate-900">{{ proposal.potential_customer?.phone || 'Not provided' }}</p>
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Phone Number</label>
+                      <p class="text-gray-900 font-medium text-sm md:text-base truncate">{{ proposal.potential_customer?.phone || 'Not provided' }}</p>
                     </div>
 
                     <div>
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Location</p>
-                      <p class="text-base sm:text-lg font-semibold text-slate-900">{{ proposal.potential_customer?.location || 'Not provided' }}</p>
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Location</label>
+                      <p class="text-gray-900 font-medium text-sm md:text-base">{{ proposal.potential_customer?.text_location || proposal.potential_customer?.map_location || 'Not provided' }}</p>
                     </div>
 
                     <!-- Customer Status -->
                     <div>
-                      <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1 sm:mb-2">Customer Status</p>
-                      <span :class="getCustomerStatusBadgeClass(proposal.potential_customer?.status)" class="px-2 py-1 rounded-full text-xs font-semibold">
+                      <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Customer Status</label>
+                      <span :class="getCustomerStatusBadgeClass(proposal.potential_customer?.status)" class="px-3 py-1.5 rounded-full text-xs font-semibold">
                         {{ formatCustomerStatus(proposal.potential_customer?.status) }}
                       </span>
                     </div>
 
-                    <!-- Customer Actions -->
-                    <div v-if="proposal.potential_customer" class="pt-4 border-t border-slate-200">
+                    <!-- View Customer Button -->
+                    <div class="pt-4 border-t border-gray-200">
                       <button 
                         @click="goToCustomerDetails"
-                        class="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow hover:shadow-lg"
+                        class="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
                       >
                         <UserCircleIcon class="w-4 h-4" />
                         <span>View Customer Details</span>
@@ -133,59 +189,53 @@
                   </div>
                 </div>
 
-                <!-- Additional Information -->
-                <div class="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-slate-200">
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+                <!-- Timeline & Metadata -->
+                <div class="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-200">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                     <div>
-                      <h3 class="text-lg sm:text-xl font-semibold text-slate-800 mb-3 sm:mb-4">Created Information</h3>
+                      <h3 class="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Created Information</h3>
                       <div class="space-y-3">
                         <div>
-                          <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1">Created By</p>
-                          <p class="text-sm font-semibold text-slate-900">{{ proposal.created_by?.name || 'System' }}</p>
+                          <p class="text-xs md:text-sm text-gray-600 font-medium mb-1">Created By</p>
+                          <p class="text-sm font-semibold text-gray-900">{{ proposal.created_by?.name || 'System' }}</p>
                         </div>
                         <div>
-                          <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1">Created At</p>
-                          <p class="text-sm font-semibold text-slate-900">{{ formatDate(proposal.created_at) }}</p>
+                          <p class="text-xs md:text-sm text-gray-600 font-medium mb-1">Created At</p>
+                          <p class="text-sm font-semibold text-gray-900">{{ formatDate(proposal.created_at) }}</p>
                         </div>
                         <div>
-                          <p class="text-xs sm:text-sm text-slate-600 font-medium mb-1">Last Updated</p>
-                          <p class="text-sm font-semibold text-slate-900">{{ formatDate(proposal.updated_at) }}</p>
+                          <p class="text-xs md:text-sm text-gray-600 font-medium mb-1">Last Updated</p>
+                          <p class="text-sm font-semibold text-gray-900">{{ formatDate(proposal.updated_at) }}</p>
                         </div>
                       </div>
                     </div>
 
                     <!-- Status Timeline -->
                     <div class="md:col-span-2">
-                      <h3 class="text-lg sm:text-xl font-semibold text-slate-800 mb-3 sm:mb-4">Status Timeline</h3>
+                      <h3 class="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Status Timeline</h3>
                       <div class="space-y-4">
-                        <div class="flex items-center space-x-3">
-                          <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <CheckIcon class="w-4 h-4 text-green-600" />
-                          </div>
-                          <div class="flex-1">
-                            <p class="text-sm font-semibold text-slate-900">Proposal Created</p>
-                            <p class="text-xs text-slate-600">{{ formatDate(proposal.created_at) }}</p>
+                        <div class="flex items-start space-x-3">
+                          <div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5 md:mt-2 flex-shrink-0"></div>
+                          <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900 truncate">Proposal Created</p>
+                            <p class="text-xs text-gray-500">{{ formatDate(proposal.created_at) }}</p>
                           </div>
                         </div>
 
-                        <div v-if="proposal.customer_approved_at" class="flex items-center space-x-3">
-                          <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <CheckIcon class="w-4 h-4 text-green-600" />
-                          </div>
-                          <div class="flex-1">
-                            <p class="text-sm font-semibold text-slate-900">Approved by Customer</p>
-                            <p class="text-xs text-slate-600">{{ formatDate(proposal.customer_approved_at) }}</p>
+                        <div v-if="proposal.customer_approved_at" class="flex items-start space-x-3">
+                          <div class="w-2 h-2 bg-green-500 rounded-full mt-1.5 md:mt-2 flex-shrink-0"></div>
+                          <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900 truncate">Approved by Customer</p>
+                            <p class="text-xs text-gray-500">{{ formatDate(proposal.customer_approved_at) }}</p>
                           </div>
                         </div>
 
-                        <div v-if="proposal.customer_rejected_at" class="flex items-center space-x-3">
-                          <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <XMarkIcon class="w-4 h-4 text-red-600" />
-                          </div>
-                          <div class="flex-1">
-                            <p class="text-sm font-semibold text-slate-900">Rejected by Customer</p>
-                            <p class="text-xs text-slate-600">{{ formatDate(proposal.customer_rejected_at) }}</p>
-                            <p v-if="proposal.customer_review" class="text-xs text-slate-500 mt-1">{{ proposal.customer_review }}</p>
+                        <div v-if="proposal.customer_rejected_at" class="flex items-start space-x-3">
+                          <div class="w-2 h-2 bg-red-500 rounded-full mt-1.5 md:mt-2 flex-shrink-0"></div>
+                          <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900 truncate">Rejected by Customer</p>
+                            <p class="text-xs text-gray-500">{{ formatDate(proposal.customer_rejected_at) }}</p>
+                            <p v-if="proposal.customer_review" class="text-xs text-gray-500 mt-1 italic">"{{ proposal.customer_review }}"</p>
                           </div>
                         </div>
                       </div>
@@ -194,12 +244,12 @@
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="flex flex-wrap gap-2 mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-slate-200">
+                <div class="flex flex-wrap gap-2 mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-200">
                   <!-- Edit Button -->
                   <button 
                     v-if="permissions.edit && !proposal.is_rejected && proposal.status === 'unsigned'"
                     @click="openEditModal"
-                    class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg"
+                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
                   >
                     <PencilIcon class="w-4 h-4" />
                     <span>Edit Proposal</span>
@@ -210,7 +260,7 @@
                     v-if="permissions.approve && proposal.status === 'unsigned' && !proposal.is_rejected"
                     @click="approveProposal"
                     :disabled="loading"
-                    class="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg disabled:cursor-not-allowed"
+                    class="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:cursor-not-allowed"
                   >
                     <CheckIcon class="w-4 h-4" />
                     <span v-if="loading">Approving...</span>
@@ -221,7 +271,7 @@
                   <button 
                     v-if="permissions.reject && proposal.status === 'unsigned' && !proposal.is_rejected"
                     @click="showRejectModal = true"
-                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
                   >
                     <XMarkIcon class="w-4 h-4" />
                     <span>Reject Proposal</span>
@@ -231,19 +281,20 @@
                   <button 
                     v-if="permissions.delete"
                     @click="deleteProposal"
-                    class="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
                   >
                     <TrashIcon class="w-4 h-4" />
                     <span>Delete Proposal</span>
                   </button>
 
-                  <!-- Back to Customer Button (Secondary) -->
+                  <!-- Download Button -->
                   <button 
-                    @click="goBackToCustomer"
-                    class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow hover:shadow-lg"
+                    v-if="proposal.file"
+                    @click="downloadProposalFile(proposal.id)"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
                   >
-                    <ArrowLeftIcon class="w-4 h-4" />
-                    <span>Back to Customer</span>
+                    <ArrowDownTrayIcon class="w-4 h-4" />
+                    <span>Download File</span>
                   </button>
                 </div>
               </div>
@@ -254,68 +305,71 @@
     </div>
 
     <!-- Edit Proposal Modal -->
-    <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-200 shadow-xl">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-              <PencilIcon class="w-5 h-5 text-amber-600" />
+    <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 md:p-4 z-50">
+      <div class="bg-white rounded-xl md:rounded-lg p-4 md:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-200 shadow-xl">
+        <div class="flex items-center justify-between mb-4 md:mb-6">
+          <div class="flex items-center space-x-2 md:space-x-3">
+            <div class="w-8 h-8 md:w-10 md:h-10 bg-gray-100 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
+              <PencilIcon class="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
             </div>
-            <div>
-              <h3 class="text-lg font-bold text-slate-800">Edit Proposal</h3>
-              <p class="text-slate-600 text-sm">Update proposal information</p>
+            <div class="min-w-0">
+              <h3 class="text-base md:text-lg font-bold text-gray-900 truncate">Edit Proposal</h3>
+              <p class="text-gray-600 text-xs md:text-sm truncate">Update proposal information</p>
             </div>
           </div>
-          <button @click="closeEditModal" class="text-slate-400 hover:text-slate-600 transition-colors">
-            <XMarkIcon class="w-6 h-6" />
+          <button 
+            @click="closeEditModal" 
+            class="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+          >
+            <XMarkIcon class="w-5 h-5 md:w-6 md:h-6" />
           </button>
         </div>
         
-        <form @submit.prevent="submitEdit" class="space-y-4">
+        <form @submit.prevent="submitEdit" class="space-y-3 md:space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">Title *</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Title *</label>
             <input
               type="text"
               v-model="editForm.title"
               required
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               placeholder="Enter proposal title"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">Description *</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Description *</label>
             <textarea
               v-model="editForm.description"
               required
               rows="4"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
               placeholder="Enter proposal description"
             ></textarea>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">Price ($) *</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Price ($) *</label>
             <input
               type="number"
               step="0.01"
               min="0"
               v-model="editForm.price"
               required
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               placeholder="0.00"
             />
           </div>
 
           <div v-if="proposal.file">
-            <label class="block text-sm font-medium text-slate-700 mb-2">Current File</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Current File</label>
             <div class="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <DocumentIcon class="w-5 h-5 text-blue-600" />
-              <span class="text-sm text-slate-700 flex-1">{{ getFileName(proposal.file) }}</span>
+              <span class="text-sm text-gray-700 flex-1 truncate">{{ getFileName(proposal.file) }}</span>
               <button
                 type="button"
                 @click="downloadProposalFile(proposal.id)"
-                class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
               >
                 Download
               </button>
@@ -323,28 +377,28 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">{{ proposal.file ? 'Replace File' : 'Upload File' }} (Optional)</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">{{ proposal.file ? 'Replace File' : 'Upload File' }} (Optional)</label>
             <input
               type="file"
               @change="handleFileUpload"
               accept=".pdf,.doc,.docx"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-amber-50 file:text-amber-700"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700"
             />
-            <p class="text-xs text-slate-500 mt-1">PDF, DOC, DOCX (Max: 2MB)</p>
+            <p class="text-xs text-gray-500 mt-1">PDF, DOC, DOCX (Max: 2MB)</p>
           </div>
 
-          <div class="flex justify-end space-x-3 pt-4 border-t border-slate-200">
+          <div class="flex flex-wrap justify-end gap-2 pt-3 md:pt-4 border-t border-gray-200">
             <button 
               type="button"
               @click="closeEditModal"
-              class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium text-sm transition-colors"
+              class="px-3 py-1.5 md:px-4 md:py-2 text-gray-600 hover:text-gray-800 font-medium text-xs md:text-sm transition-colors"
             >
               Cancel
             </button>
             <button 
               type="submit"
               :disabled="editForm.processing"
-              class="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 text-sm shadow hover:shadow-lg disabled:cursor-not-allowed"
+              class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-3 py-1.5 md:px-6 md:py-2 rounded-lg font-semibold transition-all duration-200 text-xs md:text-sm shadow hover:shadow-lg disabled:cursor-not-allowed whitespace-nowrap"
             >
               <span v-if="editForm.processing">Updating...</span>
               <span v-else>Update Proposal</span>
@@ -355,36 +409,36 @@
     </div>
 
     <!-- Reject Proposal Modal -->
-    <div v-if="showRejectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-md border border-slate-200 shadow-xl">
-        <div class="flex items-center space-x-3 mb-4">
-          <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-            <XMarkIcon class="w-5 h-5 text-red-600" />
+    <div v-if="showRejectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 md:p-4 z-50">
+      <div class="bg-white rounded-xl md:rounded-lg p-4 md:p-6 w-full max-w-md border border-gray-200 shadow-xl">
+        <div class="flex items-center space-x-2 md:space-x-3 mb-3 md:mb-4">
+          <div class="w-8 h-8 md:w-10 md:h-10 bg-red-100 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
+            <XMarkIcon class="w-4 h-4 md:w-5 md:h-5 text-red-600" />
           </div>
-          <div>
-            <h3 class="text-lg font-bold text-slate-800">Reject Proposal</h3>
-            <p class="text-slate-600 text-sm">Please provide a reason for rejection</p>
+          <div class="min-w-0">
+            <h3 class="text-base md:text-lg font-bold text-gray-900">Reject Proposal</h3>
+            <p class="text-gray-600 text-xs md:text-sm">Please provide a reason for rejection</p>
           </div>
         </div>
         
         <textarea 
           v-model="rejectForm.reason"
           placeholder="Enter reason for rejecting this proposal..."
-          class="w-full h-32 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm resize-none"
+          class="w-full h-24 md:h-32 p-3 md:p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm resize-none"
           required
         ></textarea>
         
-        <div class="flex justify-end space-x-3 mt-6">
+        <div class="flex flex-wrap justify-end gap-2 pt-3 md:pt-4 mt-3 md:mt-6">
           <button 
             @click="showRejectModal = false" 
-            class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium text-sm transition-colors"
+            class="px-3 py-1.5 md:px-4 md:py-2.5 text-gray-600 hover:text-gray-800 font-medium text-xs md:text-sm transition-colors"
           >
             Cancel
           </button>
           <button 
             @click="rejectProposal"
             :disabled="!rejectForm.reason.trim()"
-            class="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 text-sm shadow hover:shadow-lg disabled:cursor-not-allowed"
+            class="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-3 py-1.5 md:px-6 md:py-2.5 rounded-lg font-semibold transition-all duration-200 text-xs md:text-sm shadow hover:shadow-lg disabled:cursor-not-allowed whitespace-nowrap"
           >
             Reject Proposal
           </button>
@@ -408,7 +462,8 @@ import {
   PencilIcon,
   PlusIcon,
   TrashIcon,
-  DocumentIcon
+  DocumentIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -430,9 +485,11 @@ const props = defineProps({
   }
 })
 
+// State
 const showRejectModal = ref(false)
 const showEditModal = ref(false)
 const loading = ref(false)
+const isSidebarOpen = ref(false)
 
 const rejectForm = reactive({
   reason: ''
@@ -453,57 +510,63 @@ onMounted(() => {
 
 // Helper methods
 function getProposalStatusBadgeClass(proposal) {
-  if (proposal.is_rejected) {
-    return 'bg-red-100 text-red-800 border-red-200'
+  if (proposal.is_rejected === true || proposal.status === 'reject' || proposal.status === 'rejected') {
+    return 'bg-red-100 text-red-800'
   }
   
-  const classes = {
-    unsigned: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    signed: 'bg-green-100 text-green-800 border-green-200'
+  if (proposal.status === 'signed') {
+    return 'bg-green-100 text-green-800'
   }
-  return classes[proposal.status] || 'bg-slate-100 text-slate-800 border-slate-200'
+  
+  if (proposal.status === 'unsigned') {
+    return 'bg-yellow-100 text-yellow-800'
+  }
+  
+  return 'bg-gray-100 text-gray-800'
 }
 
 function getCustomerStatusBadgeClass(status) {
-  const classes = {
+  const map = {
     draft: 'bg-blue-100 text-blue-800',
-    proposal_sent: 'bg-rose-100 text-rose-800',
+    proposal_sent: 'bg-orange-100 text-orange-800',
     accepted: 'bg-green-100 text-green-800',
     rejected: 'bg-red-100 text-red-800'
   }
-  return classes[status] || 'bg-slate-100 text-slate-800'
+  return map[status] || 'bg-gray-100 text-gray-800'
 }
 
 function formatProposalStatus(proposal) {
-  if (proposal.is_rejected) {
+  if (proposal.is_rejected === true || proposal.status === 'reject' || proposal.status === 'rejected') {
     return 'Rejected'
   }
   
-  const statusMap = {
-    unsigned: 'Unsigned',
-    signed: 'Signed'
+  if (proposal.status === 'signed') {
+    return 'Signed'
   }
-  return statusMap[proposal.status] || proposal.status
+  
+  if (proposal.status === 'unsigned') {
+    return 'Unsigned'
+  }
+  
+  return proposal.status || 'Unknown'
 }
 
 function formatCustomerStatus(status) {
-  const statusMap = {
+  const map = {
     draft: 'Draft',
     proposal_sent: 'Proposal Sent',
     accepted: 'Accepted',
     rejected: 'Rejected'
   }
-  return statusMap[status] || status
+  return map[status] || status
 }
 
 function formatDate(dateString) {
   if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    month: 'short',
+    day: 'numeric'
   })
 }
 
@@ -511,12 +574,19 @@ function getFileName(filePath) {
   return filePath ? filePath.split('/').pop() : ''
 }
 
+// Sidebar toggle
+const toggleSidebar = () => {
+  isSidebarOpen.value = !isSidebarOpen.value
+  // Dispatch event for sidebar to listen to
+  window.dispatchEvent(new CustomEvent('toggle-sidebar', { detail: { isOpen: isSidebarOpen.value } }))
+}
+
 // Navigation methods
 const goBackToCustomer = () => {
-  if (window.history.length > 1) {
-    window.history.back()
+  if (props.proposal?.potential_customer?.id) {
+    router.visit(`/admin/potential-customers/${props.proposal.potential_customer.id}`)
   } else {
-    router.get('/admin/potential-customers')
+    router.visit('/admin/potential-customers')
   }
 }
 
@@ -592,61 +662,31 @@ const approveProposal = async () => {
     }
   }
 }
-const rejectProposal = (proposalId, event) => {
-  // Prevent any default behavior that might cause GET request
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
+
+const rejectProposal = () => {
+  if (!props.proposal || !props.proposal.id) return
+  
+  if (!rejectForm.reason.trim()) {
+    alert('Please provide a reason for rejection')
+    return
   }
   
-  console.log('=== REJECT PROPOSAL CLICKED ===');
-  console.log('Proposal ID:', proposalId);
-  
-  const reason = prompt('Please provide a reason for rejection:')
-  if (reason) {
-    console.log('Reject reason:', reason);
-    console.log('Sending POST to:', `/admin/proposals/${proposalId}/reject`);
-    
-    router.post(`/admin/proposals/${proposalId}/reject`, { 
-      reason: reason 
+  if (confirm('Are you sure you want to reject this proposal?')) {
+    router.post(`/admin/proposals/${props.proposal.id}/reject`, { 
+      reason: rejectForm.reason 
     }, {
       preserveScroll: true,
       onSuccess: () => {
-        console.log('Reject request successful - page should reload');
-        // The controller redirects back, so we need to reload to see changes
-        router.reload({ only: ['potentialCustomer'] })
+        showRejectModal.value = false
+        rejectForm.reason = ''
+        router.reload({ only: ['proposal'] })
       },
       onError: (errors) => {
-        console.error('Reject error details:', errors);
+        console.error('Reject error details:', errors)
         alert('Failed to reject proposal. Please check console for details.')
       }
     })
-  } else {
-    console.log('No reason provided, cancelling reject');
   }
-}
-
-const rejectCustomer = () => {
-  if (!props.potentialCustomer || !props.potentialCustomer.id) return
-  
-  console.log('=== REJECT CUSTOMER CLICKED ===');
-  console.log('Customer ID:', props.potentialCustomer.id);
-  console.log('Reject reason:', rejectForm.reason);
-  
-  router.post(`/admin/potential-customers/${props.potentialCustomer.id}/reject`, rejectForm, {
-    preserveScroll: true,
-    onSuccess: () => {
-      console.log('Customer reject request successful');
-      showRejectModal.value = false
-      rejectForm.reason = ''
-      // The controller redirects back, so we need to reload to see changes
-      router.reload({ only: ['potentialCustomer'] })
-    },
-    onError: (errors) => {
-      console.error('Customer reject error:', errors);
-      alert('Failed to reject customer. Please check console for details.')
-    }
-  })
 }
 
 const deleteProposal = () => {
@@ -663,7 +703,7 @@ const deleteProposal = () => {
 }
 
 const downloadProposalFile = (proposalId) => {
-  window.location.href = `/admin/proposals/${proposalId}/download`
+  window.open(`/admin/proposals/${proposalId}/download`, '_blank')
 }
 </script>
 
@@ -673,5 +713,17 @@ const downloadProposalFile = (proposalId) => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Responsive styles */
+@media (max-width: 767px) {
+  .mobile-header {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  
+  .mobile-title {
+    font-size: 0.875rem;
+  }
 }
 </style>

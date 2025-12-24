@@ -119,7 +119,6 @@ class ContractController extends Controller
             'end_date' => 'required|date|after:start_date',
             'payment_terms' => 'required|string|max:1000',
             'file' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
-            'redirect_to_customer' => 'nullable|in:true,false,1,0',
         ]);
 
         try {
@@ -165,16 +164,9 @@ class ContractController extends Controller
 
             DB::commit();
 
-            // Check if redirect_to_customer is set - handle both string and boolean values
-            $redirectToCustomer = $request->input('redirect_to_customer', false);
-            $shouldRedirect = filter_var($redirectToCustomer, FILTER_VALIDATE_BOOLEAN);
-            
-            if ($shouldRedirect) {
-                return redirect()->route('customers.show', $validated['customer_id'])
-                    ->with('success', 'Contract created successfully.');
-            }
-
-            return redirect('/admin/contracts')->with('success', 'Contract created successfully.');
+            // Always redirect to the contract show page after creation
+            return redirect()->route('admin.contracts.show', $contract->id)
+                ->with('success', 'Contract created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -184,41 +176,70 @@ class ContractController extends Controller
         }
     }
 
+    /**
+     * Display the specified contract.
+     * This renders Admin/Contracts/Show.vue when visiting /admin/contracts/{id}
+     */
     public function show($id)
     {
         $this->checkPermission('view contracts');
 
+        \Log::info('=== CONTRACT SHOW METHOD CALLED ===', ['contract_id' => $id]);
+
         try {
+            // Load contract with minimal relations first
             $contract = Contract::with([
-                'customer' => function($query) {
-                    $query->select('id', 'name', 'email', 'phone', 'location', 'status', 'city_id', 'subcity_id', 'total_payment_amount', 'paid_amount', 'remaining_amount', 'commission_user_id', 'commission_rate')
-                          ->with(['city', 'subcity', 'commissionUser' => function($q) {
-                              $q->select('id', 'name', 'commission_rate');
-                          }]);
-                },
-                'proposal' => function($query) {
-                    $query->select('id', 'title', 'price', 'description', 'potential_customer_id')
-                          ->with(['potentialCustomer' => function($q) {
-                              $q->select('id', 'potential_customer_name');
-                          }]);
-                },
-                'createdBy' => function($query) {
-                    $query->select('id', 'name');
-                }
-            ])->findOrFail($id);
+                'customer:id,name,email,phone,status',
+                'proposal:id,title,price,potential_customer_id',
+                'createdBy:id,name'
+            ])->find($id);
+            
+            if (!$contract) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Contract not found');
+            }
+            
+            // Now load additional customer data if needed
+            if ($contract->customer) {
+                $contract->customer->load(['city:id,name', 'subcity:id,name', 'commissionUser:id,name']);
+            }
+            
+            // Load proposal potential customer if needed
+            if ($contract->proposal) {
+                $contract->proposal->load(['potentialCustomer:id,potential_customer_name']);
+            }
             
             $tables = NavigationService::getTablesForUser(auth()->user());
             $permissions = $this->getExtendedPermissions('contracts');
 
+            \Log::info('Contract found, rendering Admin/Contracts/Show.vue', [
+                'contract_id' => $contract->id,
+                'contract_title' => $contract->contract_title,
+                'customer_id' => $contract->customer_id
+            ]);
+
+            // THIS RENDERS THE CONTRACT SHOW.VUE PAGE DIRECTLY
             return Inertia::render('Admin/Contracts/Show', [
                 'contract' => $contract,
                 'tables' => $tables,
                 'permissions' => $permissions,
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Error in ContractController@show: ' . $e->getMessage());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Contract not found: ' . $e->getMessage());
+            // If contract not found, go back to previous page
             return redirect()->back()->with('error', 'Contract not found.');
+        } catch (\Exception $e) {
+            \Log::error('Error in ContractController@show: ' . $e->getMessage());
+            \Log::error('Error Trace: ' . $e->getTraceAsString());
+            // Log the full error for debugging
+            \Log::error('Full error details for contract ' . $id . ': ', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+            // Redirect back to previous page instead of index
+            return redirect()->back()->with('error', 'An error occurred while loading the contract: ' . $e->getMessage());
         }
     }
 
@@ -249,22 +270,15 @@ class ContractController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error in ContractController@edit: ' . $e->getMessage());
-            return redirect('/admin/contracts')->with('error', 'Contract not found.');
+            \Log::error('Error in ContractController@edit: ' . $e->getMessage());
+            // Redirect back to the contract show page
+            return redirect()->route('admin.contracts.show', $id)->with('error', 'Contract not found or you do not have permission to edit it.');
         }
     }
 
     public function update(Request $request, $id)
     {
         $this->checkPermission('edit contracts');
-
-        // Debug: Log the incoming request
-        Log::info('Contract update request received:', [
-            'id' => $id,
-            'data' => $request->all(),
-            'files' => $request->hasFile('file'),
-            'redirect_to_customer' => $request->redirect_to_customer
-        ]);
 
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
@@ -276,7 +290,6 @@ class ContractController extends Controller
             'end_date' => 'required|date|after:start_date',
             'payment_terms' => 'required|string|max:1000',
             'file' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
-            'redirect_to_customer' => 'nullable|in:true,false,1,0',
         ]);
 
         try {
@@ -303,11 +316,8 @@ class ContractController extends Controller
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('contracts', $fileName, 'public');
                 $updateData['file'] = '/storage/' . $filePath;
-                
-                Log::info('File uploaded:', ['file_path' => $updateData['file']]);
             }
 
-            Log::info('Updating contract with data:', $updateData);
             $contract->update($updateData);
 
             // Update customer payment total if contract total value changed or customer changed
@@ -330,26 +340,14 @@ class ContractController extends Controller
 
             DB::commit();
 
-            Log::info('Contract updated successfully, redirecting...', [
-                'redirect_to_customer' => $request->redirect_to_customer,
-                'customer_id' => $validated['customer_id']
-            ]);
-
-            // Check if redirect_to_customer is set - handle both string and boolean values
-            $redirectToCustomer = $request->input('redirect_to_customer', false);
-            $shouldRedirect = filter_var($redirectToCustomer, FILTER_VALIDATE_BOOLEAN);
-            
-            if ($shouldRedirect) {
-                return redirect()->route('customers.show', $validated['customer_id'])
-                    ->with('success', 'Contract updated successfully.');
-            }
-
-            return redirect()->route('contracts.index')->with('success', 'Contract updated successfully.');
+            // Always redirect to contract show page after update
+            return redirect()->route('admin.contracts.show', $id)
+                ->with('success', 'Contract updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error in ContractController@update: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
+            \Log::error('Error in ContractController@update: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return redirect()->back()->with('error', 'Failed to update contract. Please try again. Error: ' . $e->getMessage());
         }
     }
@@ -365,18 +363,17 @@ class ContractController extends Controller
             
             // Check if contract can be deleted
             if ($contract->status === 'accepted') {
-                return redirect()->back()->with('error', 'Accepted contracts cannot be deleted.');
+                return redirect()->route('admin.contracts.show', $id)->with('error', 'Accepted contracts cannot be deleted.');
             }
 
-            $customer = Customer::find($contract->customer_id);
-            
+            $customerId = $contract->customer_id;
             $contract->delete();
 
             // If this was the only contract, revert customer status to draft
-            if ($customer) {
-                $remainingContracts = Contract::where('customer_id', $customer->id)->count();
+            if ($customerId) {
+                $remainingContracts = Contract::where('customer_id', $customerId)->count();
                 if ($remainingContracts === 0) {
-                    $customer->update([
+                    Customer::where('id', $customerId)->update([
                         'status' => 'draft',
                         'total_payment_amount' => null,
                         'remaining_amount' => null,
@@ -386,12 +383,13 @@ class ContractController extends Controller
 
             DB::commit();
 
-            return redirect('/admin/contracts')->with('success', 'Contract deleted successfully.');
+            // Since we can't go to index, redirect back to the customer page or previous page
+            return redirect()->back()->with('success', 'Contract deleted successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error in ContractController@destroy: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to delete contract.');
+            \Log::error('Error in ContractController@destroy: ' . $e->getMessage());
+            return redirect()->route('admin.contracts.show', $id)->with('error', 'Failed to delete contract.');
         }
     }
 
@@ -405,7 +403,7 @@ class ContractController extends Controller
             $contract = Contract::findOrFail($id);
             
             if ($contract->status !== 'contract_created') {
-                return redirect()->back()->with('error', 'Only contracts with status "Contract Created" can be accepted.');
+                return redirect()->route('admin.contracts.show', $id)->with('error', 'Only contracts with status "Contract Created" can be accepted.');
             }
 
             $contract->update([
@@ -425,12 +423,12 @@ class ContractController extends Controller
 
             DB::commit();
 
-            return redirect()->back()->with('success', 'Contract accepted successfully.');
+            return redirect()->route('admin.contracts.show', $id)->with('success', 'Contract accepted successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error in ContractController@accept: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to accept contract. Please try again.');
+            \Log::error('Error in ContractController@accept: ' . $e->getMessage());
+            return redirect()->route('admin.contracts.show', $id)->with('error', 'Failed to accept contract. Please try again.');
         }
     }
 
@@ -444,7 +442,7 @@ class ContractController extends Controller
             $contract = Contract::findOrFail($id);
             
             if ($contract->status !== 'contract_created') {
-                return redirect()->back()->with('error', 'Only contracts with status "Contract Created" can be rejected.');
+                return redirect()->route('admin.contracts.show', $id)->with('error', 'Only contracts with status "Contract Created" can be rejected.');
             }
 
             $request->validate([
@@ -470,12 +468,12 @@ class ContractController extends Controller
 
             DB::commit();
 
-            return redirect()->back()->with('success', 'Contract rejected successfully.');
+            return redirect()->route('admin.contracts.show', $id)->with('success', 'Contract rejected successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error in ContractController@reject: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to reject contract. Please try again.');
+            \Log::error('Error in ContractController@reject: ' . $e->getMessage());
+            return redirect()->route('admin.contracts.show', $id)->with('error', 'Failed to reject contract. Please try again.');
         }
     }
 
@@ -506,15 +504,15 @@ class ContractController extends Controller
 
                 DB::commit();
 
-                return redirect()->back()->with('success', 'Contract marked as unsigned successfully.');
+                return redirect()->route('admin.contracts.show', $id)->with('success', 'Contract marked as unsigned successfully.');
             }
 
-            return redirect()->back()->with('error', 'Only accepted contracts can be marked as unsigned.');
+            return redirect()->route('admin.contracts.show', $id)->with('error', 'Only accepted contracts can be marked as unsigned.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error in ContractController@markAsUnsigned: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to update contract status.');
+            \Log::error('Error in ContractController@markAsUnsigned: ' . $e->getMessage());
+            return redirect()->route('admin.contracts.show', $id)->with('error', 'Failed to update contract status.');
         }
     }
 
@@ -526,26 +524,23 @@ class ContractController extends Controller
             $contract = Contract::findOrFail($id);
             
             if (!$contract->file) {
-                return redirect()->back()->with('error', 'No file attached to this contract.');
+                return redirect()->route('admin.contracts.show', $id)->with('error', 'No file attached to this contract.');
             }
 
             $filePath = storage_path('app/public/' . str_replace('/storage/', '', $contract->file));
             
             if (!file_exists($filePath)) {
-                return redirect()->back()->with('error', 'File not found.');
+                return redirect()->route('admin.contracts.show', $id)->with('error', 'File not found.');
             }
 
             return response()->download($filePath);
 
         } catch (\Exception $e) {
-            Log::error('Error in ContractController@download: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to download contract file.');
+            \Log::error('Error in ContractController@download: ' . $e->getMessage());
+            return redirect()->route('admin.contracts.show', $id)->with('error', 'Failed to download contract file.');
         }
     }
     
-    /**
-     * Get contracts for a specific customer
-     */
     public function getCustomerContracts($customerId)
     {
         $this->checkPermission('view contracts');
@@ -564,7 +559,7 @@ class ContractController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error getting customer contracts: ' . $e->getMessage());
+            \Log::error('Error getting customer contracts: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch contracts'
@@ -572,9 +567,6 @@ class ContractController extends Controller
         }
     }
     
-    /**
-     * Get customer proposals for contract creation (Modal API)
-     */
     public function getCustomerProposals($customerId)
     {
         $this->checkPermission('create contracts');
@@ -604,7 +596,7 @@ class ContractController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            Log::error('Error in ContractController@getCustomerProposals: ' . $e->getMessage());
+            \Log::error('Error in ContractController@getCustomerProposals: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'error' => 'Failed to fetch proposals'

@@ -133,11 +133,8 @@ class PotentialCustomerController extends Controller
             'potential_customer_name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
-            'location' => 'nullable|string|max:255',
-            'specific_location' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:255',
-            'map_location' => 'nullable|string',
             'text_location' => 'nullable|string',
+            'map_location' => 'nullable|string',
             'remarks' => 'nullable|string',
             'status' => 'required|in:draft,proposal_sent,accepted,rejected',
             'city_id' => 'nullable|exists:cities,id',
@@ -148,14 +145,12 @@ class PotentialCustomerController extends Controller
             'payment_date' => 'nullable|date',
             'payment_remarks' => 'nullable|string',
             'payment_reference' => 'nullable|string|max:100',
-            // Added total_payment_amount field
             'total_payment_amount' => 'nullable|numeric|min:0',
         ]);
 
         try {
             $validated['created_by'] = auth()->id();
             
-            // If total_payment_amount is provided, use it as the main payment amount
             if (isset($validated['total_payment_amount']) && $validated['total_payment_amount'] > 0) {
                 $validated['payment_amount'] = $validated['total_payment_amount'];
             }
@@ -211,7 +206,7 @@ class PotentialCustomerController extends Controller
                 'cities' => $cities,
                 'subcities' => $subcities,
                 'payments' => $potentialCustomer->payments,
-                'total_payment_amount' => $totalPaymentAmount, // Pass calculated total
+                'total_payment_amount' => $totalPaymentAmount,
                 'csrf_token' => csrf_token(),
             ]);
 
@@ -261,11 +256,8 @@ class PotentialCustomerController extends Controller
             'potential_customer_name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
-            'location' => 'nullable|string|max:255',
-            'specific_location' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:255',
-            'map_location' => 'nullable|string',
             'text_location' => 'nullable|string',
+            'map_location' => 'nullable|string',
             'remarks' => 'nullable|string',
             'status' => 'required|in:draft,proposal_sent,accepted,rejected',
             'city_id' => 'nullable|exists:cities,id',
@@ -276,7 +268,6 @@ class PotentialCustomerController extends Controller
             'payment_date' => 'nullable|date',
             'payment_remarks' => 'nullable|string',
             'payment_reference' => 'nullable|string|max:100',
-            // Added total_payment_amount field
             'total_payment_amount' => 'nullable|numeric|min:0',
         ]);
 
@@ -284,7 +275,6 @@ class PotentialCustomerController extends Controller
             $potentialCustomer = PotentialCustomer::findOrFail($id);
             $oldStatus = $potentialCustomer->status;
             
-            // If total_payment_amount is provided, update payment_amount
             if (isset($validated['total_payment_amount']) && $validated['total_payment_amount'] > 0) {
                 $validated['payment_amount'] = $validated['total_payment_amount'];
             }
@@ -303,7 +293,7 @@ class PotentialCustomerController extends Controller
                 );
             }
 
-            // If customer is accepted, also update customer record
+            // If customer is accepted, also update customer record with ALL location data
             if ($potentialCustomer->status === 'accepted') {
                 $customer = Customer::where('potential_customer_id', $potentialCustomer->id)->first();
                 
@@ -315,6 +305,20 @@ class PotentialCustomerController extends Controller
                         'payment_date' => $validated['payment_date'] ?? null,
                         'payment_remarks' => $validated['payment_remarks'] ?? null,
                         'payment_reference' => $validated['payment_reference'] ?? null,
+                        'text_location' => $validated['text_location'] ?? $potentialCustomer->text_location,
+                        'map_location' => $validated['map_location'] ?? $potentialCustomer->map_location,
+                        'city_id' => $validated['city_id'] ?? $potentialCustomer->city_id,
+                        'subcity_id' => $validated['subcity_id'] ?? $potentialCustomer->subcity_id,
+                        // Update other fields if they were changed
+                        'name' => $validated['potential_customer_name'],
+                        'email' => $validated['email'] ?? $potentialCustomer->email,
+                        'phone' => $validated['phone'] ?? $potentialCustomer->phone,
+                        'remarks' => $validated['remarks'] ?? $potentialCustomer->remarks,
+                    ]);
+                    Log::info('Customer updated after potential customer update', [
+                        'customer_id' => $customer->id,
+                        'text_location' => $customer->text_location,
+                        'map_location' => $customer->map_location
                     ]);
                 }
             }
@@ -376,7 +380,9 @@ class PotentialCustomerController extends Controller
                 'name' => $potentialCustomer->potential_customer_name,
                 'status' => $potentialCustomer->status,
                 'payment_amount' => $potentialCustomer->payment_amount,
-                'total_payment_amount' => $potentialCustomer->total_payment_amount ?? 'NOT SET'
+                'total_payment_amount' => $potentialCustomer->total_payment_amount ?? 'NOT SET',
+                'text_location' => $potentialCustomer->text_location,
+                'map_location' => $potentialCustomer->map_location
             ]);
             
             if (!in_array($potentialCustomer->status, ['draft', 'proposal_sent'])) {
@@ -448,14 +454,15 @@ class PotentialCustomerController extends Controller
                     Log::info('Using payment_amount field', ['amount' => $totalPaymentAmount]);
                 }
                 
-                Log::info('Step 4: Creating customer record');
+                Log::info('Step 4: Creating customer record with ALL location data');
                 
-                // 4. Prepare customer data
+                // 4. Prepare customer data - Transfer ALL location data
                 $customerData = [
                     'name' => $potentialCustomer->potential_customer_name,
                     'email' => $potentialCustomer->email,
                     'phone' => $potentialCustomer->phone,
-                    'location' => $potentialCustomer->location,
+                    'text_location' => $potentialCustomer->text_location ?? null, // FIX: Ensure text location is transferred
+                    'map_location' => $potentialCustomer->map_location ?? null, // FIX: Ensure map location is transferred
                     'remarks' => ($potentialCustomer->remarks ?? '') . ' (Converted from potential customer on ' . now()->format('Y-m-d H:i') . ')',
                     'created_by' => auth()->id(),
                     'potential_customer_id' => $potentialCustomer->id,
@@ -465,24 +472,29 @@ class PotentialCustomerController extends Controller
                     // Set total payment amount
                     'total_payment_amount' => $totalPaymentAmount,
                     'payment_status' => $totalPaymentAmount > 0 ? 'pending' : 'not_paid',
+                    'paid_amount' => 0, // FIX: Initialize paid amount
+                    'remaining_amount' => $totalPaymentAmount, // FIX: Initialize remaining amount
                 ];
+                
+                Log::info('Customer data prepared with location', [
+                    'text_location' => $customerData['text_location'],
+                    'map_location' => $customerData['map_location'],
+                    'text_location_source' => 'potential_customer.text_location',
+                    'map_location_source' => 'potential_customer.map_location'
+                ]);
                 
                 // Add optional fields if they exist
                 $optionalFields = [
-                    'address',
-                    'specific_location',
-                    'map_location',
-                    'text_location',
-                    'payment_method',
-                    'payment_schedule',
-                    'payment_date',
-                    'payment_remarks',
-                    'payment_reference'
+                    'payment_method' => 'payment_method',
+                    'payment_schedule' => 'payment_schedule',
+                    'payment_date' => 'payment_date',
+                    'payment_remarks' => 'payment_remarks',
+                    'payment_reference' => 'payment_reference'
                 ];
                 
-                foreach ($optionalFields as $field) {
-                    if (!empty($potentialCustomer->$field)) {
-                        $customerData[$field] = $potentialCustomer->$field;
+                foreach ($optionalFields as $sourceField => $destField) {
+                    if (!empty($potentialCustomer->$sourceField)) {
+                        $customerData[$destField] = $potentialCustomer->$sourceField;
                     }
                 }
                 
@@ -501,9 +513,15 @@ class PotentialCustomerController extends Controller
                     Log::info('Creating new customer');
                     try {
                         $customer = Customer::create($customerData);
-                        Log::info('Customer created successfully', ['customer_id' => $customer->id]);
+                        Log::info('Customer created successfully', [
+                            'customer_id' => $customer->id,
+                            'text_location' => $customer->text_location,
+                            'map_location' => $customer->map_location,
+                            'all_data' => $customer->toArray() // Log all data for debugging
+                        ]);
                     } catch (\Exception $e) {
                         Log::error('Failed to create customer: ' . $e->getMessage());
+                        Log::error('Customer data that failed:', $customerData);
                         throw $e;
                     }
                 }
@@ -575,7 +593,12 @@ class PotentialCustomerController extends Controller
                 
                 Log::info('=== APPROVAL SUCCESSFUL ===', [
                     'potential_customer_id' => $potentialCustomer->id,
-                    'customer_id' => $customer->id
+                    'customer_id' => $customer->id,
+                    'customer_name' => $customer->name,
+                    'text_location_transferred' => $customer->text_location,
+                    'map_location_transferred' => $customer->map_location,
+                    'text_location_source_value' => $potentialCustomer->text_location,
+                    'map_location_source_value' => $potentialCustomer->map_location
                 ]);
                 
                 $successMessage = 'Customer approved successfully and moved to customers list!';
@@ -692,11 +715,8 @@ class PotentialCustomerController extends Controller
                     'potential_customer_name' => $potentialCustomer->potential_customer_name ?? '',
                     'email' => $potentialCustomer->email ?? null,
                     'phone' => $potentialCustomer->phone ?? null,
-                    'location' => $potentialCustomer->location ?? null,
-                    'address' => $potentialCustomer->address ?? null,
-                    'specific_location' => $potentialCustomer->specific_location ?? null,
-                    'map_location' => $potentialCustomer->map_location ?? null,
-                    'text_location' => $potentialCustomer->text_location ?? null,
+                    'text_location' => $potentialCustomer->text_location ?? null, // Include text location
+                    'map_location' => $potentialCustomer->map_location ?? null, // Include map location
                     'reason' => $reason,
                     'rejected_from' => 'potential_customer',
                     'original_id' => $potentialCustomer->id,
@@ -866,7 +886,9 @@ class PotentialCustomerController extends Controller
             Log::info('Potential customer found', [
                 'id' => $potentialCustomer->id,
                 'name' => $potentialCustomer->potential_customer_name,
-                'status' => $potentialCustomer->status
+                'status' => $potentialCustomer->status,
+                'text_location' => $potentialCustomer->text_location, // Log text location
+                'map_location' => $potentialCustomer->map_location // Log map location
             ]);
             
             if (!in_array($potentialCustomer->status, ['draft', 'proposal_sent'])) {
@@ -934,12 +956,13 @@ class PotentialCustomerController extends Controller
                 
                 Log::info('Step 4: Creating/updating customer record');
                 
-                // 4. Create customer record - MINIMAL FIELDS ONLY
+                // 4. Create customer record - Transfer ALL location data
                 $customerData = [
                     'name' => $potentialCustomer->potential_customer_name,
                     'email' => $potentialCustomer->email,
                     'phone' => $potentialCustomer->phone,
-                    'location' => $potentialCustomer->location,
+                    'text_location' => $potentialCustomer->text_location ?? null, // FIX: Ensure text location is transferred
+                    'map_location' => $potentialCustomer->map_location ?? null, // FIX: Ensure map location is transferred
                     'remarks' => ($potentialCustomer->remarks ?? '') . ' (Converted from potential customer on ' . now()->format('Y-m-d H:i') . ')',
                     'created_by' => auth()->id(),
                     'potential_customer_id' => $potentialCustomer->id,
@@ -951,24 +974,14 @@ class PotentialCustomerController extends Controller
                     // Set total payment amount
                     'total_payment_amount' => $totalPaymentAmount,
                     'payment_status' => $totalPaymentAmount > 0 ? 'pending' : 'not_paid',
+                    'paid_amount' => 0, // FIX: Initialize paid amount
+                    'remaining_amount' => $totalPaymentAmount, // FIX: Initialize remaining amount
                 ];
                 
-                // Add optional fields if they exist
-                if (!empty($potentialCustomer->address)) {
-                    $customerData['address'] = $potentialCustomer->address;
-                }
-                
-                if (!empty($potentialCustomer->specific_location)) {
-                    $customerData['specific_location'] = $potentialCustomer->specific_location;
-                }
-                
-                if (!empty($potentialCustomer->map_location)) {
-                    $customerData['map_location'] = $potentialCustomer->map_location;
-                }
-                
-                if (!empty($potentialCustomer->text_location)) {
-                    $customerData['text_location'] = $potentialCustomer->text_location;
-                }
+                Log::info('Customer data prepared with location', [
+                    'text_location' => $customerData['text_location'],
+                    'map_location' => $customerData['map_location']
+                ]);
                 
                 // Check if customer already exists
                 $existingCustomer = Customer::where('email', $potentialCustomer->email)
@@ -983,7 +996,11 @@ class PotentialCustomerController extends Controller
                     Log::info('Creating new customer');
                     try {
                         $customer = Customer::create($customerData);
-                        Log::info('Customer created successfully', ['customer_id' => $customer->id]);
+                        Log::info('Customer created successfully', [
+                            'customer_id' => $customer->id,
+                            'text_location' => $customer->text_location,
+                            'map_location' => $customer->map_location
+                        ]);
                     } catch (\Exception $e) {
                         Log::error('Failed to create customer: ' . $e->getMessage());
                         throw $e;
@@ -1069,7 +1086,9 @@ class PotentialCustomerController extends Controller
                 Log::info('=== APPROVE WITH PAYMENT SUCCESSFUL ===', [
                     'potential_customer_id' => $potentialCustomer->id,
                     'customer_id' => $customer->id,
-                    'payment_id' => $customerPayment->id
+                    'payment_id' => $customerPayment->id,
+                    'text_location_transferred' => $customer->text_location,
+                    'map_location_transferred' => $customer->map_location
                 ]);
                 
                 return redirect()->route('admin.potential-customers.show', $id)

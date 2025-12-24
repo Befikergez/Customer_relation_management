@@ -3,9 +3,10 @@
     <Sidebar :tables="tables" />
     
     <div class="flex-1 flex flex-col">
-      <!-- Fixed Header -->
-      <div class="bg-white/95 backdrop-blur-lg border-b border-blue-200/60 px-6 py-6 fixed top-0 left-0 right-0 lg:left-64 z-40 flex-shrink-0 z-30 shadow-lg">
-        <div class="flex justify-between items-center">
+      <!-- Fixed Header - Z-index lowered for mobile -->
+      <div class="bg-white/95 backdrop-blur-lg border-b border-blue-200/60 px-6 py-6 fixed top-0 left-0 right-0 lg:left-64 flex-shrink-0 shadow-lg transition-all duration-300"
+           :class="isMobile ? 'z-20' : 'z-30'">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div class="flex items-center space-x-4">
             <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
               <BriefcaseIcon class="w-6 h-6 text-white" />
@@ -18,24 +19,26 @@
               <p class="text-slate-600 text-sm mt-1">Complete information about this business opportunity</p>
             </div>
           </div>
-          <button 
-            @click="goBack"
-            class="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-          >
-            <ArrowLeftIcon class="w-5 h-5" />
-            <span>Back to Opportunities</span>
-          </button>
+          <div class="md:text-right">
+            <button 
+              @click="goBack"
+              class="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 w-full md:w-auto justify-center"
+            >
+              <ArrowLeftIcon class="w-5 h-5" />
+              <span>Back to Opportunities</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Scrollable Content -->
-      <div class="flex-1 overflow-auto pt-24">
+      <!-- Scrollable Content with increased top padding -->
+      <div class="flex-1 overflow-auto pt-40 md:pt-32 lg:pt-28">
         <div class="p-6">
           <div class="max-w-6xl mx-auto">
             <!-- Main Content Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8"> <!-- Increased gap from gap-6 to gap-8 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <!-- Left Column - Customer & Contact Info -->
-              <div class="lg:col-span-2 space-y-8"> <!-- Increased gap from space-y-6 to space-y-8 -->
+              <div class="lg:col-span-2 space-y-8">
                 <!-- Customer Information Card -->
                 <div class="bg-white rounded-2xl border border-blue-100/50 p-6 shadow-lg">
                   <div class="flex items-center space-x-3 mb-6">
@@ -133,7 +136,7 @@
               </div>
 
               <!-- Right Column - Additional Info & Actions -->
-              <div class="space-y-8"> <!-- Increased gap from space-y-6 to space-y-8 -->
+              <div class="space-y-8">
                 <!-- Additional Information Card -->
                 <div class="bg-white rounded-2xl border border-blue-100/50 p-6 shadow-lg">
                   <div class="flex items-center space-x-3 mb-6">
@@ -265,7 +268,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import { 
@@ -313,6 +316,21 @@ const props = defineProps({
 
 const showRejectModal = ref(false)
 const rejectReason = ref('')
+const isMobile = ref(false)
+
+// Check screen size
+const checkScreenSize = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+onMounted(() => {
+  checkScreenSize()
+  window.addEventListener('resize', checkScreenSize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkScreenSize)
+})
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
@@ -390,5 +408,17 @@ const confirmReject = () => {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(59, 130, 246, 0.7);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .fixed.top-0 {
+    left: 0 !important;
+  }
+  
+  /* Even more spacing for mobile */
+  .pt-40 {
+    padding-top: 10rem;
+  }
 }
 </style>

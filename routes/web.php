@@ -347,10 +347,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{payment}', [PaymentController::class, 'show'])->name('show');
         });
 
-        // NOTIFICATIONS
-        Route::post('/notifications/mark-as-read', [DashboardController::class, 'markAllNotificationsRead'])
-            ->name('notifications.read');
-            
         // ADMIN TEST ROUTE (for debugging)
         Route::get('/test-route', function() {
             return response()->json([

@@ -209,28 +209,31 @@
                       <p v-if="form.errors.subcity_id" class="mt-1 text-sm text-red-600">{{ form.errors.subcity_id }}</p>
                     </div>
 
-                    <div>
-                      <label for="location" class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                      <input
-                        id="location"
-                        v-model="form.location"
-                        type="text"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        :class="{'border-red-300': form.errors.location}"
-                      />
-                      <p v-if="form.errors.location" class="mt-1 text-sm text-red-600">{{ form.errors.location }}</p>
+                    <div class="md:col-span-2">
+                      <label for="text_location" class="block text-sm font-medium text-gray-700 mb-2">Text Location Description</label>
+                      <textarea
+                        id="text_location"
+                        v-model="form.text_location"
+                        rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
+                        :class="{'border-red-300': form.errors.text_location}"
+                        placeholder="Enter detailed location description..."
+                      ></textarea>
+                      <p v-if="form.errors.text_location" class="mt-1 text-sm text-red-600">{{ form.errors.text_location }}</p>
                     </div>
 
-                    <div>
-                      <label for="specific_location" class="block text-sm font-medium text-gray-700 mb-2">Specific Location</label>
+                    <div class="md:col-span-2">
+                      <label for="map_location" class="block text-sm font-medium text-gray-700 mb-2">Map Location URL</label>
                       <input
-                        id="specific_location"
-                        v-model="form.specific_location"
-                        type="text"
+                        id="map_location"
+                        v-model="form.map_location"
+                        type="url"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        :class="{'border-red-300': form.errors.specific_location}"
+                        :class="{'border-red-300': form.errors.map_location}"
+                        placeholder="https://maps.google.com/..."
                       />
-                      <p v-if="form.errors.specific_location" class="mt-1 text-sm text-red-600">{{ form.errors.specific_location }}</p>
+                      <p v-if="form.errors.map_location" class="mt-1 text-sm text-red-600">{{ form.errors.map_location }}</p>
+                      <p class="mt-1 text-xs text-gray-500">Enter Google Maps or other map service URL</p>
                     </div>
                   </div>
                 </div>
@@ -365,8 +368,8 @@ const form = reactive({
   status: props.customer?.status || 'draft',
   city_id: props.customer?.city_id || '',
   subcity_id: props.customer?.subcity_id || '',
-  location: props.customer?.location || '',
-  specific_location: props.customer?.specific_location || '',
+  text_location: props.customer?.text_location || '',
+  map_location: props.customer?.map_location || '',
   remarks: props.customer?.remarks || '',
   is_basic_update: true, // IMPORTANT: This tells the backend it's a basic update
   processing: false,
@@ -452,8 +455,8 @@ const submit = () => {
     status: form.status,
     city_id: form.city_id,
     subcity_id: form.subcity_id,
-    location: form.location,
-    specific_location: form.specific_location,
+    text_location: form.text_location,
+    map_location: form.map_location,
     remarks: form.remarks,
     is_basic_update: true
   }, {

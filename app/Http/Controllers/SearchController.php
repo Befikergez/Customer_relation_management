@@ -43,13 +43,8 @@ class SearchController extends Controller
             $opportunities = Opportunity::with(['city', 'subcity'])
                 ->where(function ($q) use ($query) {
                     $q->where('potential_customer_name', 'LIKE', "%{$query}%")
-                      ->orWhere('email', 'LIKE', "%{$query}%")
-                      ->orWhere('phone', 'LIKE', "%{$query}%")
-                      ->orWhere('address', 'LIKE', "%{$query}%")
-                      ->orWhere('location', 'LIKE', "%{$query}%")
-                      ->orWhere('map_location', 'LIKE', "%{$query}%")
                       ->orWhere('text_location', 'LIKE', "%{$query}%")
-                      ->orWhere('remarks', 'LIKE', "%{$query}%")
+                      ->orWhere('map_location', 'LIKE', "%{$query}%")
                       ->orWhereHas('city', function ($cityQuery) use ($query) {
                           $cityQuery->where('name', 'LIKE', "%{$query}%");
                       })
@@ -70,13 +65,8 @@ class SearchController extends Controller
             $customers = Customer::with(['city', 'subcity'])
                 ->where(function ($q) use ($query) {
                     $q->where('name', 'LIKE', "%{$query}%")
-                      ->orWhere('email', 'LIKE', "%{$query}%")
-                      ->orWhere('phone', 'LIKE', "%{$query}%")
-                      ->orWhere('address', 'LIKE', "%{$query}%")
-                      ->orWhere('location', 'LIKE', "%{$query}%")
-                      ->orWhere('map_location', 'LIKE', "%{$query}%")
                       ->orWhere('text_location', 'LIKE', "%{$query}%")
-                      ->orWhere('remarks', 'LIKE', "%{$query}%")
+                      ->orWhere('map_location', 'LIKE', "%{$query}%")
                       ->orWhereHas('city', function ($cityQuery) use ($query) {
                           $cityQuery->where('name', 'LIKE', "%{$query}%");
                       })
@@ -97,13 +87,8 @@ class SearchController extends Controller
             $potentialCustomers = PotentialCustomer::with(['city', 'subcity'])
                 ->where(function ($q) use ($query) {
                     $q->where('potential_customer_name', 'LIKE', "%{$query}%")
-                      ->orWhere('email', 'LIKE', "%{$query}%")
-                      ->orWhere('phone', 'LIKE', "%{$query}%")
-                      ->orWhere('address', 'LIKE', "%{$query}%")
-                      ->orWhere('location', 'LIKE', "%{$query}%")
-                      ->orWhere('map_location', 'LIKE', "%{$query}%")
                       ->orWhere('text_location', 'LIKE', "%{$query}%")
-                      ->orWhere('remarks', 'LIKE', "%{$query}%")
+                      ->orWhere('map_location', 'LIKE', "%{$query}%")
                       ->orWhereHas('city', function ($cityQuery) use ($query) {
                           $cityQuery->where('name', 'LIKE', "%{$query}%");
                       })
@@ -124,13 +109,8 @@ class SearchController extends Controller
             $rejectedOpportunities = RejectedOpportunity::with(['city', 'subcity'])
                 ->where(function ($q) use ($query) {
                     $q->where('potential_customer_name', 'LIKE', "%{$query}%")
-                      ->orWhere('email', 'LIKE', "%{$query}%")
-                      ->orWhere('phone', 'LIKE', "%{$query}%")
-                      ->orWhere('address', 'LIKE', "%{$query}%")
-                      ->orWhere('location', 'LIKE', "%{$query}%")
-                      
-                      ->orWhere('remarks', 'LIKE', "%{$query}%")
-                      ->orWhere('reason', 'LIKE', "%{$query}%")
+                      ->orWhere('text_location', 'LIKE', "%{$query}%")
+                      ->orWhere('map_location', 'LIKE', "%{$query}%")
                       ->orWhereHas('city', function ($cityQuery) use ($query) {
                           $cityQuery->where('name', 'LIKE', "%{$query}%");
                       })
@@ -168,18 +148,15 @@ class SearchController extends Controller
             case 'potential_customer':
             case 'rejected_opportunity':
                 $nameField = 'potential_customer_name';
-                $fieldsToCheck = ['potential_customer_name', 'email', 'phone', 'address', 'location', 'map_location', 'text_location', 'remarks'];
-                if ($type === 'rejected_opportunity') {
-                    $fieldsToCheck[] = 'reason';
-                }
+                $fieldsToCheck = ['potential_customer_name', 'text_location', 'map_location'];
                 break;
             case 'customer':
                 $nameField = 'name';
-                $fieldsToCheck = ['name', 'email', 'phone', 'address', 'location', 'map_location', 'text_location', 'remarks'];
+                $fieldsToCheck = ['name', 'text_location', 'map_location'];
                 break;
         }
         
-        // Calculate matches and score
+        // Calculate matches and score for direct fields
         foreach ($fieldsToCheck as $field) {
             if (isset($model->$field) && stripos($model->$field, $query) !== false) {
                 $matches[] = [
@@ -190,36 +167,31 @@ class SearchController extends Controller
                 
                 // Score based on field importance
                 if ($field === $nameField) {
-                    $score += 40; // Highest score for name matches
-                } elseif (in_array($field, ['address', 'text_location'])) {
-                    $score += 35; // High score for specific location fields
-                } elseif (in_array($field, ['email', 'phone'])) {
-                    $score += 30;
-                } elseif (in_array($field, ['location', 'map_location'])) {
-                    $score += 25;
+                    $score += 50; // Highest score for name matches
                 } else {
-                    $score += 15;
+                    $score += 30; // Good score for location fields
                 }
             }
         }
         
-        // Check city and subcity with higher weights for location-based searches
+        // Check city with high weight
         if ($model->city && stripos($model->city->name, $query) !== false) {
             $matches[] = [
                 'field' => 'city',
                 'value' => $model->city->name,
                 'highlighted_value' => $this->highlightMatch($model->city->name, $query)
             ];
-            $score += 30;
+            $score += 40;
         }
         
+        // Check subcity with high weight
         if ($model->subcity && stripos($model->subcity->name, $query) !== false) {
             $matches[] = [
                 'field' => 'subcity',
                 'value' => $model->subcity->name,
                 'highlighted_value' => $this->highlightMatch($model->subcity->name, $query)
             ];
-            $score += 30;
+            $score += 40;
         }
         
         // Calculate full location match
@@ -251,14 +223,14 @@ class SearchController extends Controller
     {
         $locationParts = [];
         
-        // Add address if available (most specific)
-        if (!empty($model->address)) {
-            $locationParts[] = $model->address;
-        }
-        
         // Add text_location if available
         if (!empty($model->text_location)) {
             $locationParts[] = $model->text_location;
+        }
+        
+        // Add map_location if available
+        if (!empty($model->map_location)) {
+            $locationParts[] = $model->map_location;
         }
         
         // Add subcity if available
@@ -269,16 +241,6 @@ class SearchController extends Controller
         // Add city if available
         if ($model->city && !empty($model->city->name)) {
             $locationParts[] = $model->city->name;
-        }
-        
-        // Fallback to location field
-        if (empty($locationParts) && !empty($model->location)) {
-            $locationParts[] = $model->location;
-        }
-        
-        // Fallback to map_location
-        if (empty($locationParts) && !empty($model->map_location)) {
-            $locationParts[] = $model->map_location;
         }
         
         return implode(', ', $locationParts);

@@ -14,8 +14,9 @@ class RejectedOpportunity extends Model
         'potential_customer_name',
         'email',
         'phone',
-        'location',
-        'specific_location', // Added specific_location
+        'text_location',
+        'map_location',
+        'specific_location',
         'created_by',
         'remarks',
         'reason',
@@ -65,15 +66,16 @@ class RejectedOpportunity extends Model
         return $query->where('rejected_from', 'customer');
     }
 
-    // Updated to include specific_location
+    // Updated search scope to include all location fields
     public function scopeSearch($query, $search)
     {
         return $query->where(function($q) use ($search) {
             $q->where('potential_customer_name', 'like', "%{$search}%")
               ->orWhere('email', 'like', "%{$search}%")
               ->orWhere('phone', 'like', "%{$search}%")
-              ->orWhere('location', 'like', "%{$search}%")
-              ->orWhere('specific_location', 'like', "%{$search}%") // Added
+              ->orWhere('text_location', 'like', "%{$search}%")
+              ->orWhere('map_location', 'like', "%{$search}%")
+              ->orWhere('specific_location', 'like', "%{$search}%")
               ->orWhere('remarks', 'like', "%{$search}%")
               ->orWhere('reason', 'like', "%{$search}%")
               ->orWhereHas('city', function($q) use ($search) {
@@ -95,10 +97,14 @@ class RejectedOpportunity extends Model
         return $query->where('subcity_id', $subcityId);
     }
 
-    // Get full location with specific location
+    // Get full location with all location fields
     public function getFullLocationAttribute()
     {
         $locationParts = [];
+        
+        if ($this->text_location) {
+            $locationParts[] = $this->text_location;
+        }
         
         if ($this->specific_location) {
             $locationParts[] = $this->specific_location;
@@ -112,6 +118,34 @@ class RejectedOpportunity extends Model
             $locationParts[] = $this->city->name;
         }
         
-        return implode(', ', $locationParts) ?: $this->location;
+        return implode(', ', $locationParts) ?: null;
+    }
+
+    // Helper method to check if map location is a valid URL
+    public function getHasValidMapLocationAttribute()
+    {
+        if (!$this->map_location) {
+            return false;
+        }
+        
+        return filter_var($this->map_location, FILTER_VALIDATE_URL) !== false;
+    }
+
+    // Get display location - prefers text location if available
+    public function getDisplayLocationAttribute()
+    {
+        if ($this->text_location) {
+            return $this->text_location;
+        }
+        
+        if ($this->specific_location) {
+            return $this->specific_location;
+        }
+        
+        if ($this->city || $this->subcity) {
+            return $this->full_location;
+        }
+        
+        return 'Location not specified';
     }
 }

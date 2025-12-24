@@ -3,9 +3,10 @@
     <Sidebar :tables="tables" />
     
     <div class="flex-1 flex flex-col">
-      <!-- Fixed Header -->
-      <div class="bg-white/90 backdrop-blur-md border-b border-slate-200/60 px-6 py-4 flex-shrink-0 z-30">
-        <div class="flex justify-between items-center">
+      <!-- Fixed Header - Z-index lowered for mobile -->
+      <div class="bg-white/90 backdrop-blur-md border-b border-slate-200/60 px-6 py-4 flex-shrink-0 transition-all duration-300"
+           :class="isMobile ? 'z-20' : 'z-30'">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div class="flex items-center space-x-3">
             <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-lg flex items-center justify-center shadow-md">
               <BriefcaseIcon class="w-5 h-5 text-white" />
@@ -18,13 +19,15 @@
               <p class="text-slate-600 text-sm mt-1">Update existing business opportunity</p>
             </div>
           </div>
-          <button 
-            @click="goBack"
-            class="bg-slate-500 hover:bg-slate-600 text-white px-5 py-2.5 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-          >
-            <ArrowLeftIcon class="w-4 h-4" />
-            <span>Back to Opportunities</span>
-          </button>
+          <div class="md:text-right">
+            <button 
+              @click="goBack"
+              class="bg-slate-500 hover:bg-slate-600 text-white px-5 py-2.5 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg w-full md:w-auto justify-center"
+            >
+              <ArrowLeftIcon class="w-4 h-4" />
+              <span>Back to Opportunities</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -164,18 +167,18 @@
                 </div>
 
                 <!-- Form Actions -->
-                <div class="flex justify-end space-x-4 mt-8 pt-6 border-t border-blue-100/50">
+                <div class="flex flex-col md:flex-row justify-end space-y-3 md:space-y-0 md:space-x-4 mt-8 pt-6 border-t border-blue-100/50">
                   <button 
                     type="button"
                     @click="goBack"
-                    class="px-6 py-3 text-slate-600 hover:text-slate-800 font-semibold text-sm transition-colors"
+                    class="px-6 py-3 text-slate-600 hover:text-slate-800 font-semibold text-sm transition-colors order-2 md:order-1 w-full md:w-auto bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200"
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit"
                     :disabled="form.processing"
-                    class="bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 disabled:from-slate-400 disabled:to-slate-400 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                    class="bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 disabled:from-slate-400 disabled:to-slate-400 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2 order-1 md:order-2 w-full md:w-auto justify-center"
                   >
                     <PencilIcon class="w-5 h-5" />
                     <span>{{ form.processing ? 'Updating...' : 'Update Opportunity' }}</span>
@@ -193,6 +196,7 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
 import { router } from '@inertiajs/vue3'
+import { ref, onMounted, onUnmounted } from 'vue'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import { 
   ArrowLeftIcon, 
@@ -236,6 +240,22 @@ const form = useForm({
   subcity_id: props.opportunity.subcity_id || ''
 })
 
+const isMobile = ref(false)
+
+// Check screen size
+const checkScreenSize = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+onMounted(() => {
+  checkScreenSize()
+  window.addEventListener('resize', checkScreenSize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkScreenSize)
+})
+
 const submit = () => {
   form.put(`/admin/opportunities/${props.opportunity.id}`, {
     onSuccess: () => {
@@ -248,3 +268,11 @@ const goBack = () => {
   router.get('/admin/opportunities')
 }
 </script>
+
+<style scoped>
+@media (max-width: 768px) {
+  .fixed.py-4 {
+    left: 0 !important;
+  }
+}
+</style>

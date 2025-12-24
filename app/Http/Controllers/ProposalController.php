@@ -49,6 +49,82 @@ class ProposalController extends Controller
         }
     }
 
+    public function create()
+    {
+        $this->checkPermission('create proposals');
+
+        try {
+            $tables = NavigationService::getTablesForUser(auth()->user());
+            $potentialCustomers = PotentialCustomer::where('status', 'draft')->get(['id', 'potential_customer_name', 'email']);
+
+            return Inertia::render('Admin/Proposals/Create', [
+                'tables' => $tables,
+                'potentialCustomers' => $potentialCustomers,
+                'permissions' => $this->getExtendedPermissions('proposals')
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Proposal Create Error: ' . $e->getMessage());
+            
+            return redirect()->route('admin.proposals.index')->with('error', 'Failed to load proposal creation form.');
+        }
+    }
+
+    public function store(Request $request)
+    {
+        $this->checkPermission('create proposals');
+
+        $validated = $request->validate([
+            'potential_customer_id' => 'required|exists:potential_customers,id',
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'price' => 'required|string|max:255',
+            'file' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
+        ]);
+
+        try {
+            $proposalData = [
+                'potential_customer_id' => $validated['potential_customer_id'],
+                'created_by' => auth()->id(),
+                'title' => $validated['title'],
+                'description' => $validated['description'],
+                'price' => $validated['price'],
+                'status' => 'unsigned',
+                'is_rejected' => false,
+            ];
+
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('proposals', $fileName, 'public');
+                $proposalData['file'] = $filePath;
+            }
+
+            $proposal = Proposal::create($proposalData);
+
+            // Update potential customer status if it's in draft
+            $potentialCustomer = PotentialCustomer::find($validated['potential_customer_id']);
+            if ($potentialCustomer && $potentialCustomer->status === 'draft') {
+                $potentialCustomer->update(['status' => 'proposal_sent']);
+            }
+
+            // Notify relevant users
+            $this->notifyStatusChange($proposal, 'created', auth()->user()->name);
+
+            // Redirect to the newly created proposal's show page
+            return redirect()->route('admin.proposals.show', $proposal->id)->with('success', 'Proposal created successfully!');
+
+        } catch (\Exception $e) {
+            \Log::error('Proposal Store Error: ' . $e->getMessage());
+            
+            return redirect()->back()->with('error', 'Failed to create proposal. Please try again.');
+        }
+    }
+
+    /**
+     * Display the specified proposal.
+     * This renders Admin/Proposals/Show.vue
+     */
     public function show($id)
     {
         $this->checkPermission('view proposals');
@@ -59,23 +135,33 @@ class ProposalController extends Controller
                     $query->select('id', 'name');
                 },
                 'potentialCustomer' => function($query) {
-                    $query->select('id', 'potential_customer_name', 'email', 'phone', 'location');
+                    $query->select('id', 'potential_customer_name', 'email', 'phone', 'text_location', 'map_location', 'status');
                 }
             ])->findOrFail($id);
             
             $tables = NavigationService::getTablesForUser(auth()->user());
             $permissions = $this->getExtendedPermissions('proposals');
 
+            // DEBUG LOG
+            \Log::info('=== PROPOSAL SHOW METHOD CALLED ===');
+            \Log::info('Proposal ID: ' . $id);
+            \Log::info('Proposal Found: ' . ($proposal ? 'YES' : 'NO'));
+            \Log::info('Rendering Admin/Proposals/Show.vue');
+
+            // THIS IS THE KEY LINE - Renders the Show.vue component
             return Inertia::render('Admin/Proposals/Show', [
                 'proposal' => $proposal,
                 'tables' => $tables,
                 'permissions' => $permissions,
             ]);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Proposal not found: ' . $e->getMessage());
+            return redirect()->route('admin.proposals.index')->with('error', 'Proposal not found.');
         } catch (\Exception $e) {
             \Log::error('Proposal Show Error: ' . $e->getMessage());
-            
-            return redirect()->back()->with('error', 'Proposal not found.');
+            \Log::error('Error Trace: ' . $e->getTraceAsString());
+            return redirect()->route('admin.proposals.index')->with('error', 'An error occurred while loading the proposal.');
         }
     }
 
@@ -98,7 +184,7 @@ class ProposalController extends Controller
         } catch (\Exception $e) {
             \Log::error('Proposal Edit Error: ' . $e->getMessage());
             
-            return redirect()->back()->with('error', 'Proposal not found.');
+            return redirect()->route('admin.proposals.show', $id)->with('error', 'Proposal not found.');
         }
     }
 
@@ -127,12 +213,12 @@ class ProposalController extends Controller
 
             $proposal->update($data);
 
-            return redirect()->back()->with('success', 'Proposal updated successfully!');
+            return redirect()->route('admin.proposals.show', $id)->with('success', 'Proposal updated successfully!');
 
         } catch (\Exception $e) {
             \Log::error('Proposal Update Error: ' . $e->getMessage());
             
-            return redirect()->back()->with('error', 'Failed to update proposal. Please try again.');
+            return redirect()->route('admin.proposals.show', $id)->with('error', 'Failed to update proposal. Please try again.');
         }
     }
 
@@ -149,12 +235,12 @@ class ProposalController extends Controller
             
             $proposal->delete();
 
-            return redirect()->back()->with('success', 'Proposal deleted successfully!');
+            return redirect()->route('admin.proposals.index')->with('success', 'Proposal deleted successfully!');
 
         } catch (\Exception $e) {
             \Log::error('Proposal Delete Error: ' . $e->getMessage());
             
-            return redirect()->back()->with('error', 'Failed to delete proposal. Please try again.');
+            return redirect()->route('admin.proposals.show', $id)->with('error', 'Failed to delete proposal. Please try again.');
         }
     }
 
@@ -254,7 +340,7 @@ class ProposalController extends Controller
             // Notify users who can view proposals
             $this->notifyStatusChange($proposal, 'approved', auth()->user()->name);
 
-            return redirect('/admin/potential-customers')->with('success', 'Proposal approved successfully!');
+            return redirect()->route('admin.proposals.show', $id)->with('success', 'Proposal approved successfully!');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -264,93 +350,94 @@ class ProposalController extends Controller
             \Log::error('Line: ' . $e->getLine());
             \Log::error('Trace: ' . $e->getTraceAsString());
             
-            return redirect('/admin/potential-customers')->with('error', 'Failed to approve proposal: ' . $e->getMessage());
+            return redirect()->route('admin.proposals.show', $id)->with('error', 'Failed to approve proposal: ' . $e->getMessage());
         }
     }
 
     public function reject(Request $request, $id)
-{
-    $this->checkPermission('reject proposals');
+    {
+        $this->checkPermission('reject proposals');
 
-    \Log::info('=== PROPOSAL REJECT PROCESS STARTED ===');
-    \Log::info('Proposal ID: ' . $id);
-    \Log::info('User ID: ' . auth()->id());
-    \Log::info('Reject reason: ' . ($request->reason ?? 'No reason provided'));
+        \Log::info('=== PROPOSAL REJECT PROCESS STARTED ===');
+        \Log::info('Proposal ID: ' . $id);
+        \Log::info('User ID: ' . auth()->id());
+        \Log::info('Reject reason: ' . ($request->reason ?? 'No reason provided'));
 
-    try {
-        DB::beginTransaction();
+        try {
+            DB::beginTransaction();
 
-        $proposal = Proposal::with('potentialCustomer')->findOrFail($id);
-        \Log::info('Proposal found for rejection:', [
-            'id' => $proposal->id,
-            'title' => $proposal->title,
-            'status' => $proposal->status,
-            'potential_customer_id' => $proposal->potential_customer_id
-        ]);
-        
-        // Get the reason
-        $reason = $request->reason ?? 'Rejected by user';
-        
-        // Update proposal status to rejected
-        $proposal->update([
-            'is_rejected' => true,
-            'customer_rejected_at' => now(),
-            'customer_approved_at' => null,
-            'status' => 'unsigned',
-            'customer_review' => $reason,
-        ]);
-
-        \Log::info('Proposal status updated to rejected');
-
-        if ($proposal->potentialCustomer) {
-            \Log::info('Creating rejected opportunity record');
+            $proposal = Proposal::with('potentialCustomer')->findOrFail($id);
+            \Log::info('Proposal found for rejection:', [
+                'id' => $proposal->id,
+                'title' => $proposal->title,
+                'status' => $proposal->status,
+                'potential_customer_id' => $proposal->potential_customer_id
+            ]);
             
-            // Create rejected opportunity record
-            RejectedOpportunity::create([
-                'opportunity_id' => $proposal->id,
-                'potential_customer_name' => $proposal->potentialCustomer->potential_customer_name,
-                'email' => $proposal->potentialCustomer->email,
-                'phone' => $proposal->potentialCustomer->phone ?? null,
-                'location' => $proposal->potentialCustomer->location ?? null,
-                'created_by' => auth()->id(),
-                'remarks' => "Proposal: {$proposal->title} - Price: {$proposal->price}",
-                'reason' => $reason,
-                'rejected_from' => 'proposal',
-                'original_id' => $proposal->potential_customer_id
+            // Get the reason
+            $reason = $request->reason ?? 'Rejected by user';
+            
+            // Update proposal status to rejected
+            $proposal->update([
+                'is_rejected' => true,
+                'customer_rejected_at' => now(),
+                'customer_approved_at' => null,
+                'status' => 'unsigned',
+                'customer_review' => $reason,
             ]);
 
-            \Log::info('Rejected opportunity record created');
+            \Log::info('Proposal status updated to rejected');
 
-            // Update potential customer status to 'rejected'
-            $proposal->potentialCustomer->update([
-                'status' => 'rejected',
-                'rejected_at' => now(),
-                'rejected_by' => auth()->id(),
-                'rejection_reason' => $reason,
-            ]);
+            if ($proposal->potentialCustomer) {
+                \Log::info('Creating rejected opportunity record');
+                
+                // Create rejected opportunity record
+                RejectedOpportunity::create([
+                    'opportunity_id' => $proposal->id,
+                    'potential_customer_name' => $proposal->potentialCustomer->potential_customer_name,
+                    'email' => $proposal->potentialCustomer->email,
+                    'phone' => $proposal->potentialCustomer->phone ?? null,
+                    'location' => $proposal->potentialCustomer->location ?? null,
+                    'created_by' => auth()->id(),
+                    'remarks' => "Proposal: {$proposal->title} - Price: {$proposal->price}",
+                    'reason' => $reason,
+                    'rejected_from' => 'proposal',
+                    'original_id' => $proposal->potential_customer_id
+                ]);
 
-            \Log::info('Potential customer status updated to rejected');
+                \Log::info('Rejected opportunity record created');
+
+                // Update potential customer status to 'rejected'
+                $proposal->potentialCustomer->update([
+                    'status' => 'rejected',
+                    'rejected_at' => now(),
+                    'rejected_by' => auth()->id(),
+                    'rejection_reason' => $reason,
+                ]);
+
+                \Log::info('Potential customer status updated to rejected');
+            }
+
+            DB::commit();
+            \Log::info('=== PROPOSAL REJECT PROCESS COMPLETED SUCCESSFULLY ===');
+
+            // Notify users who can view proposals
+            $this->notifyStatusChange($proposal, 'rejected', auth()->user()->name);
+
+            return redirect()->route('admin.proposals.show', $id)->with('success', 'Proposal rejected successfully!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('=== PROPOSAL REJECT PROCESS FAILED ===');
+            \Log::error('Error: ' . $e->getMessage());
+            \Log::error('File: ' . $e->getFile());
+            \Log::error('Line: ' . $e->getLine());
+            \Log::error('Trace: ' . $e->getTraceAsString());
+            
+            return redirect()->route('admin.proposals.show', $id)->with('error', 'Failed to reject proposal: ' . $e->getMessage());
         }
-
-        DB::commit();
-        \Log::info('=== PROPOSAL REJECT PROCESS COMPLETED SUCCESSFULLY ===');
-
-        // Notify users who can view proposals
-        $this->notifyStatusChange($proposal, 'rejected', auth()->user()->name);
-
-        return back()->with('success', 'Proposal rejected successfully!');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        \Log::error('=== PROPOSAL REJECT PROCESS FAILED ===');
-        \Log::error('Error: ' . $e->getMessage());
-        \Log::error('File: ' . $e->getFile());
-        \Log::error('Line: ' . $e->getLine());
-        \Log::error('Trace: ' . $e->getTraceAsString());
-        
-        return back()->with('error', 'Failed to reject proposal: ' . $e->getMessage());
     }
-}
+
     public function download($id)
     {
         $this->checkPermission('view proposals');
@@ -359,13 +446,13 @@ class ProposalController extends Controller
             $proposal = Proposal::findOrFail($id);
 
             if (!$proposal->file) {
-                return redirect()->back()->with('error', 'No file available for download.');
+                return redirect()->route('admin.proposals.show', $id)->with('error', 'No file available for download.');
             }
 
             $filePath = storage_path('app/public/' . $proposal->file);
             
             if (!file_exists($filePath)) {
-                return redirect()->back()->with('error', 'File not found.');
+                return redirect()->route('admin.proposals.show', $id)->with('error', 'File not found.');
             }
 
             $fileName = pathinfo($proposal->file, PATHINFO_BASENAME);
@@ -374,7 +461,7 @@ class ProposalController extends Controller
 
         } catch (\Exception $e) {
             \Log::error('Proposal Download Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to download file. Please try again.');
+            return redirect()->route('admin.proposals.show', $id)->with('error', 'Failed to download file. Please try again.');
         }
     }
 

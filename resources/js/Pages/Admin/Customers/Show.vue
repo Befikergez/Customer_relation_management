@@ -1,70 +1,66 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex">
-    <!-- Mobile Sidebar Overlay -->
-    <div v-if="mobileSidebarOpen" class="fixed inset-0 flex z-40 lg:hidden">
-      <div class="fixed inset-0 bg-gray-600 bg-opacity-75" @click="mobileSidebarOpen = false"></div>
-      <div class="relative flex-1 flex flex-col max-w-xs w-full bg-white">
-        <div class="absolute top-0 right-0 -mr-12 pt-2">
-          <button
-            @click="mobileSidebarOpen = false"
-            class="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-          >
-            <XMarkIcon class="h-6 w-6 text-white" />
-          </button>
-        </div>
-        <Sidebar :tables="tables" />
-      </div>
-    </div>
-
-    <!-- Static sidebar for desktop -->
-    <div class="hidden lg:flex lg:flex-shrink-0">
-      <div class="flex flex-col w-64">
-        <Sidebar :tables="tables" />
-      </div>
-    </div>
-
-    <div class="flex-1 min-w-0 flex flex-col">
-      <!-- Mobile top header -->
-      <div class="lg:hidden">
-        <div class="flex items-center justify-between bg-white shadow-sm border-b border-gray-200 px-4 py-2">
-          <button
-            @click="mobileSidebarOpen = true"
-            class="text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            <Bars3Icon class="h-6 w-6" />
-          </button>
-          <div class="flex-1 text-center">
-            <h1 class="text-lg font-semibold text-gray-900">Customer Details</h1>
-          </div>
-          <div class="w-6"></div>
-        </div>
-      </div>
-
-      <!-- Desktop Header -->
-      <div class="hidden lg:block bg-white shadow-sm border-b border-gray-200">
-        <div class="px-6 py-4">
-          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div class="flex items-center space-x-4">
-              <button 
-                @click="goBack"
-                class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2"
-              >
-                <ArrowLeftIcon class="w-4 h-4" />
-                <span>Back to Customers</span>
-              </button>
-              <div>
-                <h1 class="text-2xl font-bold text-gray-900">Customer Details</h1>
-                <p class="text-gray-600 mt-1">Manage customer information, payments, and commission</p>
-              </div>
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 flex">
+    <!-- Sidebar - With higher z-index to appear above header -->
+    <Sidebar :tables="tables" />
+    
+    <div class="flex-1 min-w-0 flex flex-col overflow-hidden w-full">
+      <!-- Fixed Header Section - Lower z-index than sidebar -->
+      <div 
+        id="header-section"
+        class="sticky top-0 z-20 bg-white/90 backdrop-blur-lg border-b border-blue-200/30 shadow-sm transition-all duration-300 ease-in-out"
+        :class="{
+          'md:translate-x-0': isSidebarOpen,
+          'translate-x-0': !isSidebarOpen
+        }"
+      >
+        <!-- Mobile/Tablet Header -->
+        <div class="lg:hidden">
+          <div class="flex items-center justify-between px-4 py-3">
+            <!-- Mobile spacing for sidebar hamburger button -->
+            <div class="w-12 flex-shrink-0"></div>
+            
+            <!-- Center: Title -->
+            <div class="flex-1 text-center min-w-0">
+              <h1 class="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2 truncate">
+                <span class="truncate">Customer Details</span>
+                <div class="w-5 h-5 bg-gradient-to-r from-blue-500/30 to-teal-500/30 rounded flex items-center justify-center flex-shrink-0">
+                  <UserCircleIcon class="w-3 h-3 text-blue-600/70" />
+                </div>
+              </h1>
+              <p class="text-gray-600 text-xs mt-0.5 truncate">Manage customer information and payments</p>
             </div>
-            <div class="flex items-center space-x-3">
-              <span :class="getStatusBadgeClass(customer.status)" class="px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
-                {{ formatStatus(customer.status) }}
-              </span>
-              <div v-if="customer.payments && customer.payments.length > 0" 
-                   class="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg shadow-sm">
-                <CreditCardIcon class="w-4 h-4" />
-                <span>{{ customer.payments?.length || 0 }} payment(s)</span>
+            
+            <!-- Right spacer for balance -->
+            <div class="w-12 flex-shrink-0"></div>
+          </div>
+        </div>
+
+        <!-- Desktop Header (1024px and above) -->
+        <div class="hidden lg:block">
+          <div class="px-4 lg:px-6 py-4">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <div class="flex items-center space-x-4">
+                <button 
+                  @click="goBack"
+                  class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                >
+                  <ArrowLeftIcon class="w-4 h-4" />
+                  <span>Back to Customers</span>
+                </button>
+                <div class="min-w-0">
+                  <h1 class="text-xl lg:text-2xl font-bold text-gray-900 truncate">Customer Details</h1>
+                  <p class="text-gray-600 text-sm lg:text-base mt-1 truncate">Manage customer information, payments, and commission</p>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <span :class="getStatusBadgeClass(customer.status)" class="px-3 py-1.5 rounded-lg text-sm font-semibold shadow-sm">
+                  {{ formatStatus(customer.status) }}
+                </span>
+                <div v-if="customer.payments && customer.payments.length > 0" 
+                     class="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1.5 rounded-lg shadow-sm">
+                  <CreditCardIcon class="w-3.5 h-3.5" />
+                  <span class="text-sm">{{ customer.payments?.length || 0 }} payment(s)</span>
+                </div>
               </div>
             </div>
           </div>
@@ -81,628 +77,641 @@
         @success="onContractSuccess"
       />
 
-      <!-- Content -->
-      <div class="flex-1 p-4 lg:p-6">
-        <div class="max-w-7xl mx-auto">
-          <!-- Flash Messages -->
-          <div v-if="flashMessage" class="mb-6">
-            <div :class="flashMessageClass" class="rounded-lg p-4 shadow-sm border">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                  <CheckCircleIcon v-if="flashMessageType === 'success'" class="w-5 h-5 text-green-500" />
-                  <ExclamationCircleIcon v-else class="w-5 h-5 text-red-500" />
-                  <p class="font-medium">{{ flashMessage }}</p>
+      <!-- Main Content -->
+      <div class="flex-1 overflow-hidden flex flex-col">
+        <!-- Main Content Area -->
+        <div class="flex-1 overflow-auto">
+          <div class="pt-4 px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
+            <!-- Flash Messages -->
+            <div v-if="flashMessage" class="mb-4 sm:mb-6">
+              <div :class="flashMessageClass" class="rounded-lg p-4 shadow-sm border">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-3">
+                    <CheckCircleIcon v-if="flashMessageType === 'success'" class="w-5 h-5 text-green-500" />
+                    <ExclamationCircleIcon v-else class="w-5 h-5 text-red-500" />
+                    <p class="font-medium text-sm sm:text-base">{{ flashMessage }}</p>
+                  </div>
+                  <button 
+                    @click="clearFlashMessage" 
+                    class="text-gray-400 hover:text-gray-600"
+                  >
+                    <XMarkIcon class="w-5 h-5" />
+                  </button>
                 </div>
-                <button 
-                  @click="clearFlashMessage" 
-                  class="text-gray-400 hover:text-gray-600"
-                >
-                  <XMarkIcon class="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Customer Overview Card -->
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <!-- Customer Information -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 lg:col-span-2">
-              <div class="flex items-center space-x-4 mb-6">
-                <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center">
-                  <UserCircleIcon class="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h2 class="text-2xl font-bold text-gray-900">{{ customer.name }}</h2>
-                  <p class="text-gray-600">Customer ID: #{{ customer.id }}</p>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                    <p class="text-gray-900 font-medium">{{ customer.email || 'Not provided' }}</p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                    <p class="text-gray-900 font-medium">{{ customer.phone || 'Not provided' }}</p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <p class="text-gray-900 font-medium">{{ customer.location || 'Not provided' }}</p>
-                  </div>
-                </div>
-                <div class="space-y-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-                    <p class="text-gray-900 font-medium">{{ customer.city?.name || 'Not specified' }}</p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Subcity</label>
-                    <p class="text-gray-900 font-medium">{{ customer.subcity?.name || 'Not specified' }}</p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Specific Location</label>
-                    <p class="text-gray-900 font-medium">{{ customer.specific_location || 'Not specified' }}</p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Created At</label>
-                    <p class="text-gray-900 font-medium">{{ formatDate(customer.created_at) }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Remarks -->
-              <div class="mt-6 pt-6 border-t border-gray-200">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
-                <p class="text-gray-700 bg-gray-50 rounded-lg p-4">
-                  {{ customer.remarks || 'No remarks provided.' }}
-                </p>
               </div>
             </div>
 
-            <!-- Quick Actions & Timeline -->
-            <div class="space-y-6">
-              <!-- Quick Actions -->
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                <div class="space-y-3">
-                  <!-- Create Contract Button -->
+            <!-- Customer Overview Card -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+              <!-- Customer Information -->
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 lg:col-span-2">
+                <div class="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
+                  <div class="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                    <UserCircleIcon class="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                  </div>
+                  <div class="min-w-0">
+                    <h2 class="text-lg sm:text-2xl font-bold text-gray-900 truncate">{{ customer.name }}</h2>
+                    <p class="text-gray-600 text-sm sm:text-base">Customer ID: #{{ customer.id }}</p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div class="space-y-3 sm:space-y-4">
+                    <div>
+                      <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                      <p class="text-gray-900 font-medium text-sm sm:text-base">{{ customer.email || 'Not provided' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <p class="text-gray-900 font-medium text-sm sm:text-base">{{ customer.phone || 'Not provided' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">City</label>
+                      <p class="text-gray-900 font-medium text-sm sm:text-base">{{ customer.city?.name || 'Not specified' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Subcity</label>
+                      <p class="text-gray-900 font-medium text-sm sm:text-base">{{ customer.subcity?.name || 'Not specified' }}</p>
+                    </div>
+                  </div>
+                  <div class="space-y-3 sm:space-y-4">
+                    <div>
+                      <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Text Location Description</label>
+                      <p class="text-gray-900 font-medium text-sm sm:text-base">{{ customer.text_location || 'Not specified' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Map Location</label>
+                      <div v-if="customer.map_location">
+                        <a 
+                          :href="customer.map_location" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          class="text-blue-600 hover:text-blue-800 font-medium underline text-sm sm:text-base"
+                        >
+                          View on Map
+                        </a>
+                      </div>
+                      <p v-else class="text-gray-900 font-medium text-sm sm:text-base">Not specified</p>
+                    </div>
+                    <div>
+                      <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Created At</label>
+                      <p class="text-gray-900 font-medium text-sm sm:text-base">{{ formatDate(customer.created_at) }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Remarks -->
+                <div class="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
+                  <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                  <p class="text-gray-700 bg-gray-50 rounded-lg p-3 sm:p-4 text-sm sm:text-base">
+                    {{ customer.remarks || 'No remarks provided.' }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Quick Actions & Timeline -->
+              <div class="space-y-4 sm:space-y-6">
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                  <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h3>
+                  <div class="space-y-2 sm:space-y-3">
+                    <!-- Create Contract Button -->
+                    <button 
+                      v-if="permissions.create && isValidForContract"
+                      @click="openContractModal"
+                      class="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
+                    >
+                      <DocumentTextIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>Create Contract</span>
+                    </button>
+
+                    <!-- Approve Button -->
+                    <button 
+                      v-if="showApproveButton"
+                      @click="approveCustomer"
+                      :disabled="approveLoading"
+                      class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
+                    >
+                      <CheckIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span v-if="approveLoading">Approving...</span>
+                      <span v-else>Approve Customer</span>
+                    </button>
+
+                    <!-- Reject Button -->
+                    <button 
+                      v-if="showRejectButton"
+                      @click="openRejectModal"
+                      :disabled="rejectLoading"
+                      class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-300 disabled:to-red-300 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
+                    >
+                      <XMarkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span v-if="rejectLoading">Rejecting...</span>
+                      <span v-else>Reject Customer</span>
+                    </button>
+
+                    <!-- Delete Customer Button -->
+                    <button 
+                      v-if="permissions.delete"
+                      @click="deleteCustomer"
+                      class="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
+                    >
+                      <TrashIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>Delete Customer</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Timeline -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                  <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Timeline</h3>
+                  <div class="space-y-3 sm:space-y-4">
+                    <div class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5 sm:mt-2"></div>
+                      <div>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Customer Created</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ formatDate(customer.created_at) }}</p>
+                      </div>
+                    </div>
+                    <div class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-green-500 rounded-full mt-1.5 sm:mt-2"></div>
+                      <div>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Last Updated</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ formatDate(customer.updated_at) }}</p>
+                      </div>
+                    </div>
+                    <div v-if="customer.approved_at" class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-green-500 rounded-full mt-1.5 sm:mt-2"></div>
+                      <div>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Approved</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ formatDate(customer.approved_at) }}</p>
+                      </div>
+                    </div>
+                    <div v-if="customer.payments && customer.payments.length > 0" class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-purple-500 rounded-full mt-1.5 sm:mt-2"></div>
+                      <div>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Payments</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ customer.payments.length }} payment(s)</p>
+                      </div>
+                    </div>
+                    <div v-if="customer.contracts && customer.contracts.length > 0" class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5 sm:mt-2"></div>
+                      <div>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Contracts</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ customer.contracts.length }} contract(s)</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Summary - Editable -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+              <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start sm:items-center gap-3 mb-4 sm:mb-6">
+                <div class="min-w-0">
+                  <h3 class="text-base sm:text-lg font-semibold text-gray-900">Payment Summary</h3>
+                  <p class="text-gray-600 text-xs sm:text-sm mt-1">All amounts are editable</p>
+                </div>
+                <div v-if="permissions.edit" class="flex space-x-2">
+                  <button 
+                    v-if="!editingPayment"
+                    @click="startEditingPayment"
+                    class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm"
+                  >
+                    <PencilIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Edit Payment</span>
+                  </button>
+                  <button 
+                    v-else
+                    @click="cancelEditingPayment"
+                    class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm"
+                  >
+                    <XMarkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Cancel</span>
+                  </button>
+                  <button 
+                    v-if="editingPayment"
+                    @click="savePaymentInfo"
+                    :disabled="savingPayment"
+                    class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm"
+                  >
+                    <CheckIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span v-if="savingPayment">Saving...</span>
+                    <span v-else>Save</span>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Payment Progress -->
+              <div class="mb-4 sm:mb-6">
+                <div class="flex justify-between mb-2">
+                  <span class="text-xs sm:text-sm font-medium text-gray-700">Payment Progress</span>
+                  <span class="text-xs sm:text-sm font-medium text-gray-700">{{ paymentProgress.toFixed(0) }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 sm:h-2.5">
+                  <div 
+                    class="h-2 sm:h-2.5 rounded-full transition-all duration-500"
+                    :class="getPaymentProgressClass(customer.payment_status)"
+                    :style="{ width: paymentProgress + '%' }"
+                  ></div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                  <!-- Total Amount -->
+                  <div class="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                    <label class="block text-xs font-medium text-blue-700 mb-1">Total Amount</label>
+                    <div v-if="!editingPayment">
+                      <p class="mt-1 text-lg sm:text-xl font-semibold text-blue-900">${{ formatNumber(customer.total_payment_amount) }}</p>
+                    </div>
+                    <div v-else>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                        <input
+                          v-model="paymentForm.total_payment_amount"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          class="w-full pl-8 pr-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold text-sm sm:text-base"
+                          @input="calculateRemainingAmount"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Paid Amount -->
+                  <div class="bg-green-50 p-3 sm:p-4 rounded-lg">
+                    <label class="block text-xs font-medium text-green-700 mb-1">Paid Amount</label>
+                    <div v-if="!editingPayment">
+                      <p class="mt-1 text-lg sm:text-xl font-semibold text-green-900">${{ formatNumber(customer.paid_amount) }}</p>
+                    </div>
+                    <div v-else>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                        <input
+                          v-model="paymentForm.paid_amount"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          :max="paymentForm.total_payment_amount"
+                          class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold text-sm sm:text-base"
+                          @input="calculateRemainingAmount"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Remaining Amount -->
+                  <div class="bg-green-50 p-3 sm:p-4 rounded-lg">
+                    <label class="block text-xs font-medium text-green-700 mb-1">Remaining</label>
+                    <div v-if="!editingPayment">
+                      <p class="mt-1 text-lg sm:text-xl font-semibold text-green-900">${{ formatNumber(customer.remaining_amount) }}</p>
+                    </div>
+                    <div v-else>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                        <input
+                          v-model="paymentForm.remaining_amount"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold text-sm sm:text-base bg-gray-100"
+                          readonly
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Payment Status -->
+                <div class="mt-3 sm:mt-4">
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Payment Status</label>
+                  <span :class="getPaymentStatusBadgeClass(paymentForm.payment_status)" class="px-3 py-1 rounded-lg text-xs sm:text-sm font-semibold">
+                    {{ formatPaymentStatus(paymentForm.payment_status) }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Recent Payments -->
+              <div v-if="customer.payments && customer.payments.length > 0">
+                <div class="overflow-x-auto -mx-2 sm:mx-0">
+                  <table class="w-full min-w-full">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
+                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Method</th>
+                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Schedule</th>
+                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                      <tr v-for="payment in customer.payments.slice(0, 5)" :key="payment.id" class="hover:bg-gray-50 transition-colors">
+                        <td class="px-3 py-3">
+                          <span class="font-bold text-gray-900 text-sm sm:text-base">${{ formatNumber(payment.amount) }}</span>
+                        </td>
+                        <td class="px-3 py-3">
+                          <div class="flex items-center space-x-1 sm:space-x-2">
+                            <span class="text-base sm:text-lg">{{ getPaymentMethodIcon(payment.method) }}</span>
+                            <span class="text-gray-700 text-xs sm:text-sm">{{ payment.method }}</span>
+                          </div>
+                        </td>
+                        <td class="px-3 py-3">
+                          <span class="text-gray-700 text-xs sm:text-sm">{{ payment.schedule }}</span>
+                        </td>
+                        <td class="px-3 py-3">
+                          <span class="text-gray-700 text-xs sm:text-sm">{{ formatDate(payment.payment_date) }}</span>
+                        </td>
+                        <td class="px-3 py-3">
+                          <span :class="getPaymentStatusClass(payment)" class="px-2 py-1 rounded-full text-xs sm:text-sm font-semibold">
+                            {{ getPaymentStatus(payment) }}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div v-if="customer.payments.length > 5" class="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 text-center">
+                  <button 
+                    @click="viewAllPayments"
+                    class="text-purple-600 hover:text-purple-700 font-medium text-xs sm:text-sm transition-colors flex items-center space-x-1 mx-auto"
+                  >
+                    <span>View all {{ customer.payments.length }} payments</span>
+                    <ChevronRightIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </button>
+                </div>
+              </div>
+              <div v-else class="text-center py-6 sm:py-8">
+                <CreditCardIcon class="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-3" />
+                <p class="text-gray-600 text-sm sm:text-base">No payments have been added yet.</p>
+              </div>
+            </div>
+
+            <!-- Commission Summary - Editable -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+              <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start sm:items-center gap-3 mb-4 sm:mb-6">
+                <div class="min-w-0">
+                  <h3 class="text-base sm:text-lg font-semibold text-gray-900">Commission Summary</h3>
+                  <p class="text-gray-600 text-xs sm:text-sm mt-1">Commission based on user's rate × payment amount</p>
+                </div>
+                <div v-if="permissions.edit" class="flex space-x-2">
+                  <button 
+                    v-if="!editingCommission"
+                    @click="startEditingCommission"
+                    class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm"
+                  >
+                    <PencilIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Edit Commission</span>
+                  </button>
+                  <button 
+                    v-else
+                    @click="cancelEditingCommission"
+                    class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm"
+                  >
+                    <XMarkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Cancel</span>
+                  </button>
+                  <button 
+                    v-if="editingCommission"
+                    @click="saveCommissionInfo"
+                    :disabled="savingCommission"
+                    class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm"
+                  >
+                    <CheckIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span v-if="savingCommission">Saving...</span>
+                    <span v-else>Save</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mb-4 sm:mb-6">
+                <div class="flex justify-between mb-2">
+                  <span class="text-xs sm:text-sm font-medium text-gray-700">Commission Progress</span>
+                  <span class="text-xs sm:text-sm font-medium text-gray-700">{{ commissionProgress.toFixed(0) }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 sm:h-2.5">
+                  <div 
+                    class="h-2 sm:h-2.5 rounded-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500"
+                    :style="{ width: commissionProgress + '%' }"
+                  ></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                  <!-- Commission User -->
+                  <div class="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                    <label class="block text-xs font-medium text-blue-700 mb-1">Commission User</label>
+                    <div v-if="!editingCommission">
+                      <p v-if="commissionUserData" class="mt-1 font-semibold text-blue-900 text-sm sm:text-base">{{ commissionUserData.name }}</p>
+                      <p v-else class="mt-1 text-gray-500 italic text-sm sm:text-base">Not assigned</p>
+                    </div>
+                    <div v-else>
+                      <select
+                        v-model="commissionForm.commission_user_id"
+                        class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                        @change="onCommissionUserChange"
+                      >
+                        <option value="">Select User</option>
+                        <option v-for="user in commissionUsers" :key="user.id" :value="user.id">
+                          {{ user.name }} ({{ user.commission_rate }}%)
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <!-- Commission Rate -->
+                  <div class="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                    <label class="block text-xs font-medium text-blue-700 mb-1">Commission Rate</label>
+                    <div v-if="!editingCommission">
+                      <p class="mt-1 font-semibold text-blue-900 text-sm sm:text-base">{{ customer.commission_rate }}%</p>
+                    </div>
+                    <div v-else>
+                      <div class="relative">
+                        <input
+                          v-model="commissionForm.commission_rate"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold text-sm sm:text-base"
+                          @input="calculateCommissionAmount"
+                        />
+                        <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">%</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Total Commission -->
+                  <div class="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                    <label class="block text-xs font-medium text-blue-700 mb-1">Total Commission</label>
+                    <div v-if="!editingCommission">
+                      <p class="mt-1 text-lg sm:text-xl font-semibold text-blue-900">${{ formatNumber(customer.commission_amount) }}</p>
+                    </div>
+                    <div v-else>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                        <input
+                          v-model="commissionForm.commission_amount"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          class="w-full pl-8 pr-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold text-sm sm:text-base bg-gray-100"
+                          readonly
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Paid Commission -->
+                  <div class="bg-green-50 p-3 sm:p-4 rounded-lg">
+                    <label class="block text-xs font-medium text-green-700 mb-1">Paid Commission</label>
+                    <div v-if="!editingCommission">
+                      <p class="mt-1 text-lg sm:text-xl font-semibold text-green-900">${{ formatNumber(customer.paid_commission) }}</p>
+                    </div>
+                    <div v-else>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                        <input
+                          v-model="commissionForm.paid_commission"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold text-sm sm:text-base"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Commission Status -->
+                <div class="mt-3 sm:mt-4">
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Commission Status</label>
+                  <span :class="getCommissionStatusBadgeClass(commissionForm.commission_status)" class="px-3 py-1 rounded-lg text-xs sm:text-sm font-semibold">
+                    {{ formatCommissionStatus(commissionForm.commission_status) }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Commission User Info -->
+              <div v-if="commissionUserData && !editingCommission" class="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-4 rounded-lg">
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                  <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                    <UserIcon class="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h4 class="font-semibold text-gray-900 text-sm sm:text-base truncate">{{ commissionUserData.name }}</h4>
+                    <p class="text-gray-600 text-xs sm:text-sm">Commission Rate: {{ customer.commission_rate }}%</p>
+                  </div>
+                  <div class="text-right min-w-0">
+                    <p class="text-gray-600 text-xs sm:text-sm">Total Commission</p>
+                    <p class="text-lg sm:text-xl font-bold text-blue-900 truncate">${{ formatNumber(customer.commission_amount) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contracts Section -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                  <div class="min-w-0">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-900">Contracts</h3>
+                    <p class="text-gray-600 text-xs sm:text-sm mt-1">Total: {{ (customer.contracts || []).length }} contract(s)</p>
+                  </div>
+                  <!-- Create Contract Button - Opens Modal -->
                   <button 
                     v-if="permissions.create && isValidForContract"
                     @click="openContractModal"
-                    class="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
+                    class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm"
                   >
-                    <DocumentTextIcon class="w-4 h-4" />
+                    <PlusIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>Create Contract</span>
                   </button>
-
-                  <!-- Approve Button -->
-                  <button 
-                    v-if="showApproveButton"
-                    @click="approveCustomer"
-                    :disabled="approveLoading"
-                    class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
-                  >
-                    <CheckIcon class="w-4 h-4" />
-                    <span v-if="approveLoading">Approving...</span>
-                    <span v-else>Approve Customer</span>
-                  </button>
-
-                  <!-- Reject Button -->
-                  <button 
-                    v-if="showRejectButton"
-                    @click="openRejectModal"
-                    :disabled="rejectLoading"
-                    class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-300 disabled:to-red-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
-                  >
-                    <XMarkIcon class="w-4 h-4" />
-                    <span v-if="rejectLoading">Rejecting...</span>
-                    <span v-else>Reject Customer</span>
-                  </button>
-
-                  <!-- Delete Customer Button -->
-                  <button 
-                    v-if="permissions.delete"
-                    @click="deleteCustomer"
-                    class="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
-                  >
-                    <TrashIcon class="w-4 h-4" />
-                    <span>Delete Customer</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Timeline -->
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Timeline</h3>
-                <div class="space-y-4">
-                  <div class="flex items-start space-x-3">
-                    <div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">Customer Created</p>
-                      <p class="text-sm text-gray-500">{{ formatDate(customer.created_at) }}</p>
-                    </div>
-                  </div>
-                  <div class="flex items-start space-x-3">
-                    <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">Last Updated</p>
-                      <p class="text-sm text-gray-500">{{ formatDate(customer.updated_at) }}</p>
-                    </div>
-                  </div>
-                  <div v-if="customer.approved_at" class="flex items-start space-x-3">
-                    <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">Approved</p>
-                      <p class="text-sm text-gray-500">{{ formatDate(customer.approved_at) }}</p>
-                    </div>
-                  </div>
-                  <div v-if="customer.payments && customer.payments.length > 0" class="flex items-start space-x-3">
-                    <div class="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">Payments</p>
-                      <p class="text-sm text-gray-500">{{ customer.payments.length }} payment(s)</p>
-                    </div>
-                  </div>
-                  <div v-if="customer.contracts && customer.contracts.length > 0" class="flex items-start space-x-3">
-                    <div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">Contracts</p>
-                      <p class="text-sm text-gray-500">{{ customer.contracts.length }} contract(s)</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Payment Summary - Editable -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div class="flex justify-between items-center mb-6">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900">Payment Summary</h3>
-                <p class="text-gray-600 text-sm mt-1">All amounts are editable</p>
-              </div>
-              <div v-if="permissions.edit" class="flex space-x-2">
-                <button 
-                  v-if="!editingPayment"
-                  @click="startEditingPayment"
-                  class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
-                >
-                  <PencilIcon class="w-4 h-4" />
-                  <span>Edit Payment</span>
-                </button>
-                <button 
-                  v-else
-                  @click="cancelEditingPayment"
-                  class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
-                >
-                  <XMarkIcon class="w-4 h-4" />
-                  <span>Cancel</span>
-                </button>
-                <button 
-                  v-if="editingPayment"
-                  @click="savePaymentInfo"
-                  :disabled="savingPayment"
-                  class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
-                >
-                  <CheckIcon class="w-4 h-4" />
-                  <span v-if="savingPayment">Saving...</span>
-                  <span v-else>Save</span>
-                </button>
-              </div>
-            </div>
-            
-            <!-- Payment Progress -->
-            <div class="mb-6">
-              <div class="flex justify-between mb-2">
-                <span class="text-sm font-medium text-gray-700">Payment Progress</span>
-                <span class="text-sm font-medium text-gray-700">{{ paymentProgress.toFixed(0) }}%</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  class="h-2.5 rounded-full transition-all duration-500"
-                  :class="getPaymentProgressClass(customer.payment_status)"
-                  :style="{ width: paymentProgress + '%' }"
-                ></div>
-              </div>
-              <div class="grid grid-cols-3 gap-4 mt-4">
-                <!-- Total Amount -->
-                <div class="bg-blue-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-blue-700 mb-1">Total Amount</label>
-                  <div v-if="!editingPayment">
-                    <p class="mt-1 text-xl font-semibold text-blue-900">${{ formatNumber(customer.total_payment_amount) }}</p>
-                  </div>
-                  <div v-else>
-                    <div class="relative">
-                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                      <input
-                        v-model="paymentForm.total_payment_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="w-full pl-8 pr-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold"
-                        @input="calculateRemainingAmount"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Paid Amount -->
-                <div class="bg-green-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-green-700 mb-1">Paid Amount</label>
-                  <div v-if="!editingPayment">
-                    <p class="mt-1 text-xl font-semibold text-green-900">${{ formatNumber(customer.paid_amount) }}</p>
-                  </div>
-                  <div v-else>
-                    <div class="relative">
-                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                      <input
-                        v-model="paymentForm.paid_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        :max="paymentForm.total_payment_amount"
-                        class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold"
-                        @input="calculateRemainingAmount"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Remaining Amount -->
-                <div class="bg-green-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-green-700 mb-1">Remaining</label>
-                  <div v-if="!editingPayment">
-                    <p class="mt-1 text-xl font-semibold text-green-900">${{ formatNumber(customer.remaining_amount) }}</p>
-                  </div>
-                  <div v-else>
-                    <div class="relative">
-                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                      <input
-                        v-model="paymentForm.remaining_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold bg-gray-100"
-                        readonly
-                      />
-                    </div>
+                  <div v-else class="text-xs sm:text-sm text-gray-500">
+                    <p v-if="!permissions.create">You don't have permission to create contracts</p>
+                    <p v-else-if="!isValidForContract">Cannot create contract for customer with status: {{ customer.status }}</p>
                   </div>
                 </div>
               </div>
               
-              <!-- Payment Status -->
-              <div class="mt-4">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Payment Status</label>
-                <span :class="getPaymentStatusBadgeClass(paymentForm.payment_status)" class="px-3 py-1 rounded-lg text-sm font-semibold">
-                  {{ formatPaymentStatus(paymentForm.payment_status) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Recent Payments -->
-            <div v-if="customer.payments && customer.payments.length > 0">
-              <div class="overflow-x-auto">
-                <table class="w-full">
+              <!-- Contracts Table -->
+              <div v-if="customer.contracts && customer.contracts.length > 0" class="overflow-x-auto -mx-2 sm:mx-0">
+                <table class="w-full min-w-full">
                   <thead class="bg-gray-50">
                     <tr>
-                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
-                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Method</th>
-                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Schedule</th>
-                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
-                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                      <th class="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
+                      <th class="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Value</th>
+                      <th class="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                      <th class="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
+                      <th class="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="payment in customer.payments.slice(0, 5)" :key="payment.id" class="hover:bg-gray-50 transition-colors">
-                      <td class="px-4 py-4">
-                        <span class="font-bold text-gray-900">${{ formatNumber(payment.amount) }}</span>
+                    <tr v-for="contract in customer.contracts" :key="contract.id" class="hover:bg-gray-50 transition-colors">
+                      <td class="px-3 py-3 sm:px-6 sm:py-4">
+                        <div class="font-medium text-gray-900 text-sm sm:text-base">{{ contract.contract_title }}</div>
+                        <div class="text-gray-500 text-xs sm:text-sm line-clamp-2">{{ contract.contract_description }}</div>
                       </td>
-                      <td class="px-4 py-4">
-                        <div class="flex items-center space-x-2">
-                          <span class="text-lg">{{ getPaymentMethodIcon(payment.method) }}</span>
-                          <span class="text-gray-700">{{ payment.method }}</span>
-                        </div>
+                      <td class="px-3 py-3 sm:px-6 sm:py-4">
+                        <span class="font-semibold text-gray-900 text-sm sm:text-base">${{ formatNumber(contract.total_value) }}</span>
                       </td>
-                      <td class="px-4 py-4">
-                        <span class="text-gray-700">{{ payment.schedule }}</span>
-                      </td>
-                      <td class="px-4 py-4">
-                        <span class="text-gray-700">{{ formatDate(payment.payment_date) }}</span>
-                      </td>
-                      <td class="px-4 py-4">
-                        <span :class="getPaymentStatusClass(payment)" class="px-3 py-1 rounded-full text-sm font-semibold">
-                          {{ getPaymentStatus(payment) }}
+                      <td class="px-3 py-3 sm:px-6 sm:py-4">
+                        <span :class="getStatusBadgeClass(contract.status)" class="px-2 py-1 sm:px-3 sm:py-1 rounded-lg text-xs sm:text-sm font-semibold">
+                          {{ formatStatus(contract.status) }}
                         </span>
+                      </td>
+                      <td class="px-3 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm text-gray-600">
+                        {{ formatDate(contract.created_at) }}</td>
+                      <td class="px-3 py-3 sm:px-6 sm:py-4">
+                        <div class="flex gap-1 sm:gap-2">
+                          <!-- View button -->
+                          <button 
+                            @click="viewContract(contract.id)"
+                            class="p-1 sm:p-1.5 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-sm hover:shadow"
+                            title="View"
+                          >
+                            <EyeIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                          
+                          <!-- Edit button - opens modal -->
+                          <button 
+                            v-if="permissions.edit"
+                            @click="editContract(contract)"
+                            class="p-1 sm:p-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow"
+                            title="Edit"
+                          >
+                            <PencilIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                          
+                          <!-- Delete button -->
+                          <button 
+                            v-if="permissions.delete"
+                            @click="deleteContract(contract.id)"
+                            class="p-1 sm:p-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm hover:shadow"
+                            title="Delete"
+                          >
+                            <TrashIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              
-              <div v-if="customer.payments.length > 5" class="mt-4 pt-4 border-t border-gray-200 text-center">
-                <button 
-                  @click="viewAllPayments"
-                  class="text-purple-600 hover:text-purple-700 font-medium text-sm transition-colors flex items-center space-x-1 mx-auto"
-                >
-                  <span>View all {{ customer.payments.length }} payments</span>
-                  <ChevronRightIcon class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            <div v-else class="text-center py-8">
-              <CreditCardIcon class="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p class="text-gray-600">No payments have been added yet.</p>
-            </div>
-          </div>
 
-          <!-- Commission Summary - Editable -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div class="flex justify-between items-center mb-6">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900">Commission Summary</h3>
-                <p class="text-gray-600 text-sm mt-1">Commission based on user's rate × payment amount</p>
-              </div>
-              <div v-if="permissions.edit" class="flex space-x-2">
-                <button 
-                  v-if="!editingCommission"
-                  @click="startEditingCommission"
-                  class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
-                >
-                  <PencilIcon class="w-4 h-4" />
-                  <span>Edit Commission</span>
-                </button>
-                <button 
-                  v-else
-                  @click="cancelEditingCommission"
-                  class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
-                >
-                  <XMarkIcon class="w-4 h-4" />
-                  <span>Cancel</span>
-                </button>
-                <button 
-                  v-if="editingCommission"
-                  @click="saveCommissionInfo"
-                  :disabled="savingCommission"
-                  class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
-                >
-                  <CheckIcon class="w-4 h-4" />
-                  <span v-if="savingCommission">Saving...</span>
-                  <span v-else>Save</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="mb-6">
-              <div class="flex justify-between mb-2">
-                <span class="text-sm font-medium text-gray-700">Commission Progress</span>
-                <span class="text-sm font-medium text-gray-700">{{ commissionProgress.toFixed(0) }}%</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  class="h-2.5 rounded-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500"
-                  :style="{ width: commissionProgress + '%' }"
-                ></div>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-                <!-- Commission User -->
-                <div class="bg-blue-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-blue-700 mb-1">Commission User</label>
-                  <div v-if="!editingCommission">
-                    <p v-if="customer.commissionUser" class="mt-1 font-semibold text-blue-900">{{ customer.commissionUser.name }}</p>
-                    <p v-else class="mt-1 text-gray-500 italic">Not assigned</p>
-                  </div>
-                  <div v-else>
-                    <select
-                      v-model="commissionForm.commission_user_id"
-                      class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      @change="onCommissionUserChange"
-                    >
-                      <option value="">Select User</option>
-                      <option v-for="user in commissionUsers" :key="user.id" :value="user.id">
-                        {{ user.name }} ({{ user.commission_rate }}%)
-                      </option>
-                    </select>
-                  </div>
-                </div>
-                
-                <!-- Commission Rate -->
-                <div class="bg-blue-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-blue-700 mb-1">Commission Rate</label>
-                  <div v-if="!editingCommission">
-                    <p class="mt-1 font-semibold text-blue-900">{{ customer.commission_rate }}%</p>
-                  </div>
-                  <div v-else>
-                    <div class="relative">
-                      <input
-                        v-model="commissionForm.commission_rate"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold"
-                        @input="calculateCommissionAmount"
-                      />
-                      <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Total Commission -->
-                <div class="bg-blue-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-blue-700 mb-1">Total Commission</label>
-                  <div v-if="!editingCommission">
-                    <p class="mt-1 text-xl font-semibold text-blue-900">${{ formatNumber(customer.commission_amount) }}</p>
-                  </div>
-                  <div v-else>
-                    <div class="relative">
-                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                      <input
-                        v-model="commissionForm.commission_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="w-full pl-8 pr-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 font-semibold bg-gray-100"
-                        readonly
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Paid Commission -->
-                <div class="bg-green-50 p-4 rounded-lg">
-                  <label class="block text-xs font-medium text-green-700 mb-1">Paid Commission</label>
-                  <div v-if="!editingCommission">
-                    <p class="mt-1 text-xl font-semibold text-green-900">${{ formatNumber(customer.paid_commission) }}</p>
-                  </div>
-                  <div v-else>
-                    <div class="relative">
-                      <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                      <input
-                        v-model="commissionForm.paid_commission"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-green-900 font-semibold"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Commission Status -->
-              <div class="mt-4">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Commission Status</label>
-                <span :class="getCommissionStatusBadgeClass(commissionForm.commission_status)" class="px-3 py-1 rounded-lg text-sm font-semibold">
-                  {{ formatCommissionStatus(commissionForm.commission_status) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Commission User Info -->
-            <div v-if="customer.commissionUser && !editingCommission" class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
-              <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                  <UserIcon class="w-6 h-6 text-white" />
-                </div>
-                <div class="flex-1">
-                  <h4 class="font-semibold text-gray-900">{{ customer.commissionUser.name }}</h4>
-                  <p class="text-sm text-gray-600">Commission Rate: {{ customer.commission_rate }}%</p>
-                </div>
-                <div class="text-right">
-                  <p class="text-sm text-gray-600">Total Commission</p>
-                  <p class="text-xl font-bold text-blue-900">${{ formatNumber(customer.commission_amount) }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Contracts Section -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div class="px-6 py-4 border-b border-gray-200">
-              <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                <div>
-                  <h3 class="text-lg font-semibold text-gray-900">Contracts</h3>
-                  <p class="text-gray-600 text-sm mt-1">Total: {{ (customer.contracts || []).length }} contract(s)</p>
-                </div>
-                <!-- Create Contract Button - Opens Modal -->
+              <!-- No Contracts State -->
+              <div v-else class="text-center py-8 sm:py-12">
+                <DocumentTextIcon class="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                <p class="text-gray-600 text-sm sm:text-base mb-3 sm:mb-4">No contracts created for this customer yet.</p>
                 <button 
                   v-if="permissions.create && isValidForContract"
                   @click="openContractModal"
-                  class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                  class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm mx-auto"
                 >
-                  <PlusIcon class="w-4 h-4" />
-                  <span>Create Contract</span>
+                  <DocumentTextIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Create First Contract</span>
                 </button>
-                <div v-else class="text-sm text-gray-500">
+                <div v-else class="text-xs sm:text-sm text-gray-500">
                   <p v-if="!permissions.create">You don't have permission to create contracts</p>
                   <p v-else-if="!isValidForContract">Cannot create contract for customer with status: {{ customer.status }}</p>
                 </div>
-              </div>
-            </div>
-            
-            <!-- Contracts Table -->
-            <div v-if="customer.contracts && customer.contracts.length > 0" class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Value</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                  <tr v-for="contract in customer.contracts" :key="contract.id" class="hover:bg-gray-50 transition-colors">
-                    <td class="px-6 py-4">
-                      <div class="font-medium text-gray-900">{{ contract.contract_title }}</div>
-                      <div class="text-sm text-gray-500 line-clamp-2">{{ contract.contract_description }}</div>
-                    </td>
-                    <td class="px-6 py-4">
-                      <span class="font-semibold text-gray-900">${{ formatNumber(contract.total_value) }}</span>
-                    </td>
-                    <td class="px-6 py-4">
-                      <span :class="getStatusBadgeClass(contract.status)" class="px-3 py-1 rounded-lg text-sm font-semibold">
-                        {{ formatStatus(contract.status) }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-600">
-                      {{ formatDate(contract.created_at) }}</td>
-                    <td class="px-6 py-4">
-                      <div class="flex gap-2">
-                        <!-- View button -->
-                        <button 
-                          @click="viewContract(contract.id)"
-                          class="p-1.5 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-sm hover:shadow"
-                          title="View"
-                        >
-                          <EyeIcon class="w-4 h-4" />
-                        </button>
-                        
-                        <!-- Edit button - opens modal -->
-                        <button 
-                          v-if="permissions.edit"
-                          @click="editContract(contract)"
-                          class="p-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow"
-                          title="Edit"
-                        >
-                          <PencilIcon class="w-4 h-4" />
-                        </button>
-                        
-                        <!-- Delete button -->
-                        <button 
-                          v-if="permissions.delete"
-                          @click="deleteContract(contract.id)"
-                          class="p-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm hover:shadow"
-                          title="Delete"
-                        >
-                          <TrashIcon class="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- No Contracts State -->
-            <div v-else class="text-center py-12">
-              <DocumentTextIcon class="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p class="text-gray-600 mb-4">No contracts created for this customer yet.</p>
-              <button 
-                v-if="permissions.create && isValidForContract"
-                @click="openContractModal"
-                class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 mx-auto"
-              >
-                <DocumentTextIcon class="w-4 h-4" />
-                <span>Create First Contract</span>
-              </button>
-              <div v-else class="text-sm text-gray-500">
-                <p v-if="!permissions.create">You don't have permission to create contracts</p>
-                <p v-else-if="!isValidForContract">Cannot create contract for customer with status: {{ customer.status }}</p>
               </div>
             </div>
           </div>
@@ -712,13 +721,13 @@
 
     <!-- Reject Modal -->
     <div v-if="showRejectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-md border border-gray-200 shadow-xl">
-        <div class="flex items-center space-x-3 mb-4">
+      <div class="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md border border-gray-200 shadow-xl">
+        <div class="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
           <div class="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-lg sm:rounded-xl flex items-center justify-center">
             <XMarkIcon class="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
           </div>
-          <div>
-            <h3 class="text-base sm:text-lg font-bold text-gray-900">Reject Customer</h3>
+          <div class="min-w-0">
+            <h3 class="text-base sm:text-lg font-bold text-gray-900 truncate">Reject Customer</h3>
             <p class="text-gray-600 text-xs sm:text-sm">Please provide a reason for rejection</p>
           </div>
         </div>
@@ -730,11 +739,11 @@
           required
         ></textarea>
         
-        <div class="flex justify-end space-x-2 sm:space-x-3 mt-4 sm:mt-6">
+        <div class="flex justify-end space-x-2 sm:space-x-3 mt-3 sm:mt-4 sm:mt-6">
           <button 
             type="button"
             @click="closeRejectModal" 
-            class="px-3 py-2 sm:px-4 sm:py-2.5 text-gray-600 hover:text-gray-800 font-medium text-xs sm:text-sm transition-colors"
+            class="px-3 py-1.5 sm:px-4 sm:py-2.5 text-gray-600 hover:text-gray-800 font-medium text-xs sm:text-sm transition-colors"
           >
             Cancel
           </button>
@@ -742,7 +751,7 @@
             type="button"
             @click="rejectCustomer"
             :disabled="!rejectForm.reason.trim() || rejectLoading"
-            class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-400 disabled:to-red-400 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg font-semibold transition-all duration-200 text-xs sm:text-sm shadow hover:shadow-lg disabled:cursor-not-allowed"
+            class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-400 disabled:to-red-400 text-white px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg font-semibold transition-all duration-200 text-xs sm:text-sm shadow hover:shadow-lg disabled:cursor-not-allowed"
           >
             <span v-if="rejectLoading">Rejecting...</span>
             <span v-else>Reject Customer</span>
@@ -767,7 +776,6 @@ import {
   PencilIcon,
   PlusIcon,
   TrashIcon,
-  Bars3Icon,
   CheckCircleIcon,
   ExclamationCircleIcon,
   CreditCardIcon,
@@ -808,7 +816,6 @@ const props = defineProps({
 })
 
 // Modal states
-const mobileSidebarOpen = ref(false)
 const showRejectModal = ref(false)
 const showContractModal = ref(false)
 const approveLoading = ref(false)
@@ -846,6 +853,36 @@ const commissionForm = reactive({
 // Flash message state
 const flashMessage = ref(props.flash?.message || '')
 const flashMessageType = ref(props.flash?.type || 'success')
+
+// Sidebar state
+const isSidebarOpen = ref(false)
+
+// Listen for sidebar state changes
+onMounted(() => {
+  // Listen for sidebar state changes
+  const handleSidebarStateChange = (event) => {
+    isSidebarOpen.value = event.detail.isOpen
+  }
+  
+  window.addEventListener('sidebar:state-changed', handleSidebarStateChange)
+  
+  // Check initial sidebar state by looking for mobile menu button
+  const checkInitialSidebarState = () => {
+    const mobileMenuBtn = document.getElementById('mobile-menu-toggle')
+    const sidebar = document.querySelector('aside')
+    if (mobileMenuBtn && sidebar) {
+      // Check if sidebar is visible (translate-x-0 class)
+      isSidebarOpen.value = sidebar.classList.contains('translate-x-0')
+    }
+  }
+  
+  // Wait a bit for DOM to be ready
+  setTimeout(checkInitialSidebarState, 100)
+  
+  return () => {
+    window.removeEventListener('sidebar:state-changed', handleSidebarStateChange)
+  }
+})
 
 // Watch for changes in customer data
 watch(() => props.customer, (newCustomer) => {
@@ -887,6 +924,25 @@ const paymentProgress = computed(() => {
 const commissionProgress = computed(() => {
   if (!commissionForm.commission_amount) return 0
   return Math.min(100, (commissionForm.paid_commission / commissionForm.commission_amount) * 100)
+})
+
+// Computed property for commission user data
+const commissionUserData = computed(() => {
+  // Try multiple possible property names for commission user data
+  const user = props.customer.commissionUser || 
+               props.customer.commission_user || 
+               (props.customer.commission_user_id && 
+                props.commissionUsers.find(user => user.id === props.customer.commission_user_id))
+  
+  // If we found a user object but it doesn't have a name, try to get it from commissionUsers
+  if (user && !user.name && user.id) {
+    const foundUser = props.commissionUsers.find(u => u.id === user.id)
+    if (foundUser) {
+      return foundUser
+    }
+  }
+  
+  return user
 })
 
 // Computed properties for button visibility
@@ -1207,8 +1263,8 @@ const saveCommissionInfo = async () => {
       // Update the local customer data with the response data
       if (data.data) {
         // Update commission user info
-        if (data.data.commissionUser) {
-          props.customer.commissionUser = data.data.commissionUser
+        if (data.data.commissionUser || data.data.commission_user) {
+          props.customer.commissionUser = data.data.commissionUser || data.data.commission_user
         }
         // Update commission fields
         props.customer.commission_user_id = data.data.commission_user_id
@@ -1433,5 +1489,29 @@ onMounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Ensure proper mobile scrolling */
+@media (max-width: 1023px) {
+  .max-h-[90vh] {
+    max-height: 85vh;
+  }
+}
+
+/* Header transition */
+#header-section {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ensure proper z-index layering */
+/* Sidebar has z-index: 30 in sidebar.vue */
+/* Header should be lower to appear under sidebar when open on mobile */
+#header-section {
+  z-index: 20 !important;
+}
+
+/* Prevent horizontal overflow */
+html, body {
+  overflow-x: hidden;
 }
 </style>

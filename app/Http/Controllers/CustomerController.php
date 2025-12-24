@@ -16,9 +16,6 @@ use Illuminate\Support\Facades\DB;
 use App\Services\NavigationService;
 use App\Traits\HandlesPermissions;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
-use App\Notifications\CustomerStatusNotification;
-use App\Notifications\ContractStatusNotification;
 
 class CustomerController extends Controller
 {
@@ -161,8 +158,8 @@ class CustomerController extends Controller
                 'name' => 'required|string|max:255',
                 'email' => 'nullable|email|max:255',
                 'phone' => 'nullable|string|max:20',
-                'location' => 'nullable|string|max:255',
-                'specific_location' => 'nullable|string|max:255',
+                'text_location' => 'nullable|string',
+                'map_location' => 'nullable|string',
                 'remarks' => 'nullable|string',
                 'city_id' => 'nullable|exists:cities,id',
                 'subcity_id' => 'nullable|exists:subcities,id',
@@ -175,8 +172,8 @@ class CustomerController extends Controller
                 'name' => 'required|string|max:255',
                 'email' => 'nullable|email|max:255',
                 'phone' => 'nullable|string|max:20',
-                'location' => 'nullable|string|max:255',
-                'specific_location' => 'nullable|string|max:255',
+                'text_location' => 'nullable|string',
+                'map_location' => 'nullable|string',
                 'remarks' => 'nullable|string',
                 'city_id' => 'nullable|exists:cities,id',
                 'subcity_id' => 'nullable|exists:subcities,id',
@@ -200,8 +197,8 @@ class CustomerController extends Controller
             // Debug: Log before update
             Log::debug('Before Update:', [
                 'old_name' => $customer->name,
-                'old_location' => $customer->location,
-                'old_specific_location' => $customer->specific_location,
+                'old_text_location' => $customer->text_location,
+                'old_map_location' => $customer->map_location,
                 'old_status' => $oldStatus,
             ]);
             
@@ -256,34 +253,10 @@ class CustomerController extends Controller
             // Debug: Log after update
             Log::debug('After Update:', [
                 'new_name' => $customer->fresh()->name,
-                'new_location' => $customer->fresh()->location,
-                'new_specific_location' => $customer->fresh()->specific_location,
+                'new_text_location' => $customer->fresh()->text_location,
+                'new_map_location' => $customer->fresh()->map_location,
                 'new_status' => $customer->fresh()->status,
             ]);
-
-            // Send notification if status changed
-            if ($oldStatus !== $customer->fresh()->status) {
-                Log::debug('Status changed:', [
-                    'old' => $oldStatus,
-                    'new' => $customer->fresh()->status,
-                ]);
-                
-                $action = match($customer->fresh()->status) {
-                    'accepted' => 'approved',
-                    'rejected' => 'rejected',
-                    default => 'updated'
-                };
-                
-                // Get all users who should receive notifications
-                $allRelevantUsers = User::all();
-                
-                Notification::send(
-                    $allRelevantUsers,
-                    new CustomerStatusNotification($customer->fresh(), $action, auth()->user()->name)
-                );
-                
-                Log::debug('Notification sent for status change');
-            }
 
             // Check if this is an AJAX request (from modal)
             if ($isAjaxRequest) {
@@ -384,14 +357,6 @@ class CustomerController extends Controller
                 'approved_by' => auth()->id(),
             ]);
 
-            // Send notification for customer approval - REMOVED ROLE FILTERS
-            $allRelevantUsers = User::all();
-            
-            Notification::send(
-                $allRelevantUsers,
-                new CustomerStatusNotification($customer, 'approved', auth()->user()->name)
-            );
-
             return redirect()->back()->with('success', 'Customer approved successfully.');
 
         } catch (\Exception $e) {
@@ -444,8 +409,8 @@ class CustomerController extends Controller
                     'potential_customer_name' => $customer->name,
                     'email' => $customer->email,
                     'phone' => $customer->phone,
-                    'location' => $customer->location,
-                    'address' => $customer->specific_location,
+                    'text_location' => $customer->text_location,
+                    'map_location' => $customer->map_location,
                     'reason' => $validated['reason'],
                     'rejected_from' => 'customer',
                     'original_id' => $customer->id,
@@ -462,14 +427,6 @@ class CustomerController extends Controller
                     'rejection_reason' => $validated['reason'],
                     'rejected_by' => auth()->id(),
                 ]);
-
-                // Send notification for customer rejection - REMOVED ROLE FILTERS
-                $allRelevantUsers = User::all();
-                
-                Notification::send(
-                    $allRelevantUsers,
-                    new CustomerStatusNotification($customer, 'rejected', auth()->user()->name)
-                );
 
                 DB::commit();
 
@@ -521,8 +478,8 @@ class CustomerController extends Controller
                 'name' => $potentialCustomer->potential_customer_name,
                 'email' => $potentialCustomer->email,
                 'phone' => $potentialCustomer->phone,
-                'location' => $potentialCustomer->location,
-                'specific_location' => $potentialCustomer->specific_location,
+                'text_location' => $potentialCustomer->text_location,
+                'map_location' => $potentialCustomer->map_location,
                 'remarks' => $potentialCustomer->remarks,
                 'city_id' => $potentialCustomer->city_id,
                 'subcity_id' => $potentialCustomer->subcity_id,
@@ -541,14 +498,6 @@ class CustomerController extends Controller
                 'converted_at' => now(),
                 'converted_customer_id' => $customer->id,
             ]);
-
-            // Send notification for customer creation - REMOVED ROLE FILTERS
-            $allRelevantUsers = User::all();
-            
-            Notification::send(
-                $allRelevantUsers,
-                new CustomerStatusNotification($customer, 'created', auth()->user()->name)
-            );
 
             return redirect()->to('/admin/customers/' . $customer->id)
                 ->with('success', 'Customer created from potential customer successfully.');
@@ -800,8 +749,8 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
-            'location' => 'nullable|string|max:255',
-            'specific_location' => 'nullable|string|max:255',
+            'text_location' => 'nullable|string',
+            'map_location' => 'nullable|string',
             'remarks' => 'nullable|string',
             'city_id' => 'nullable|exists:cities,id',
             'subcity_id' => 'nullable|exists:subcities,id',
@@ -821,8 +770,8 @@ class CustomerController extends Controller
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'phone' => $validated['phone'],
-                'location' => $validated['location'],
-                'specific_location' => $validated['specific_location'],
+                'text_location' => $validated['text_location'],
+                'map_location' => $validated['map_location'],
                 'remarks' => $validated['remarks'],
                 'city_id' => $validated['city_id'],
                 'subcity_id' => $validated['subcity_id'],
@@ -838,14 +787,6 @@ class CustomerController extends Controller
                 'commission_amount' => $commissionAmount,
                 'paid_commission' => 0,
             ]);
-
-            // Send notification for customer creation - REMOVED ROLE FILTERS
-            $allRelevantUsers = User::all();
-            
-            Notification::send(
-                $allRelevantUsers,
-                new CustomerStatusNotification($customer, 'created', auth()->user()->name)
-            );
 
             return redirect()->to('/admin/customers/' . $customer->id)
                 ->with('success', 'Customer created successfully.');

@@ -10,26 +10,31 @@
       <div class="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-teal-400 to-blue-500 rounded-full blur-3xl opacity-30 animate-bounce"></div>
       
       <div class="relative">
-        <!-- Fixed Header -->
-        <div class="bg-white/90 backdrop-blur-sm border-b-2 border-blue-500/30 px-6 py-6 sticky top-0 z-40 shadow-lg">
+        <!-- Fixed Header - Lower z-index than sidebar -->
+        <div class="bg-white/90 backdrop-blur-sm border-b-2 border-blue-500/30 px-6 py-6 sticky top-0 z-20 shadow-lg">
           <div class="flex justify-between items-center">
-            <div class="flex items-center space-x-4">
-              <div class="relative">
-                <div class="w-14 h-14 bg-gradient-to-br from-blue-600 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/50">
-                  <Search class="w-7 h-7 text-white" />
+            <!-- Mobile spacing for hamburger button -->
+            <div class="md:hidden w-12 flex-shrink-0"></div>
+            
+            <div class="flex-1 flex justify-between items-center">
+              <div class="flex items-center space-x-4">
+                <div class="relative">
+                  <div class="w-14 h-14 bg-gradient-to-br from-blue-600 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/50">
+                    <Search class="w-7 h-7 text-white" />
+                  </div>
+                  <div class="absolute -top-1 -right-1 w-4 h-4 bg-teal-500 rounded-full border-2 border-white animate-ping"></div>
                 </div>
-                <div class="absolute -top-1 -right-1 w-4 h-4 bg-teal-500 rounded-full border-2 border-white animate-ping"></div>
-              </div>
-              <div>
-                <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-800 to-teal-700 bg-clip-text text-transparent">
-                  Search
-                </h1>
-                <p class="text-slate-700 mt-1 flex items-center space-x-2">
-                  <span class="font-medium">Welcome back, {{ $page.props.auth.user.name }}</span>
-                  <span class="text-xs bg-gradient-to-r from-teal-600 to-blue-600 text-white px-3 py-1 rounded-full capitalize font-bold shadow-md">
-                    {{ userRole }}
-                  </span>
-                </p>
+                <div>
+                  <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-800 to-teal-700 bg-clip-text text-transparent">
+                    Search
+                  </h1>
+                  <p class="text-slate-700 mt-1 flex items-center space-x-2">
+                    <span class="font-medium">Welcome back, {{ $page.props.auth.user.name }}</span>
+                    <span class="text-xs bg-gradient-to-r from-teal-600 to-blue-600 text-white px-3 py-1 rounded-full capitalize font-bold shadow-md">
+                      {{ userRole }}
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -258,7 +263,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { Search, Eye, Mail, Phone, MapPin, Navigation, Briefcase, UserCircle2, Users, FileText } from 'lucide-vue-next'
 import Sidebar from './Sidebar.vue'

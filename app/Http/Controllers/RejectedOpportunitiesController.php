@@ -108,6 +108,20 @@ class RejectedOpportunitiesController extends Controller
                 }
             ])->findOrFail($id);
             
+            // Debug log to check data
+            \Log::info('Rejected Opportunity Data', [
+                'id' => $rejectedOpportunity->id,
+                'name' => $rejectedOpportunity->potential_customer_name,
+                'text_location' => $rejectedOpportunity->text_location,
+                'map_location' => $rejectedOpportunity->map_location,
+                'email' => $rejectedOpportunity->email,
+                'phone' => $rejectedOpportunity->phone,
+                'city_id' => $rejectedOpportunity->city_id,
+                'subcity_id' => $rejectedOpportunity->subcity_id,
+                'has_city' => !is_null($rejectedOpportunity->city),
+                'has_subcity' => !is_null($rejectedOpportunity->subcity)
+            ]);
+            
             $tables = NavigationService::getTablesForUser(auth()->user());
             $cities = City::select('id', 'name')->orderBy('name')->get();
             $subcities = Subcity::select('id', 'name', 'city_id')->orderBy('name')->get();
@@ -184,8 +198,8 @@ class RejectedOpportunitiesController extends Controller
                 'phone' => 'nullable|string|max:20',
                 'city_id' => 'nullable|exists:cities,id',
                 'subcity_id' => 'nullable|exists:subcities,id',
-                'address' => 'nullable|string|max:500',
-                'location' => 'nullable|string|max:500',
+                'text_location' => 'nullable|string',
+                'map_location' => 'nullable|string',
                 'reason' => 'nullable|string|max:1000',
                 'remarks' => 'nullable|string|max:1000',
             ]);
@@ -202,8 +216,8 @@ class RejectedOpportunitiesController extends Controller
                 'phone' => $request->phone,
                 'city_id' => $request->city_id,
                 'subcity_id' => $request->subcity_id,
-                'address' => $request->address,
-                'location' => $request->location,
+                'text_location' => $request->text_location,
+                'map_location' => $request->map_location,
                 'reason' => $request->reason,
                 'remarks' => $request->remarks,
                 'updated_by' => auth()->id(),
@@ -241,7 +255,11 @@ class RejectedOpportunitiesController extends Controller
             \Log::info('Reverting Rejected Opportunity', [
                 'id' => $rejectedOpportunity->id,
                 'name' => $rejectedOpportunity->potential_customer_name,
-                'source' => $rejectedOpportunity->rejected_from
+                'source' => $rejectedOpportunity->rejected_from,
+                'text_location' => $rejectedOpportunity->text_location,
+                'map_location' => $rejectedOpportunity->map_location,
+                'city_id' => $rejectedOpportunity->city_id,
+                'subcity_id' => $rejectedOpportunity->subcity_id
             ]);
 
             DB::transaction(function () use ($rejectedOpportunity) {
@@ -292,8 +310,8 @@ class RejectedOpportunitiesController extends Controller
             'potential_customer_name' => $rejectedOpportunity->potential_customer_name,
             'email' => $rejectedOpportunity->email,
             'phone' => $rejectedOpportunity->phone,
-            'address' => $rejectedOpportunity->address,
-            'location' => $rejectedOpportunity->location,
+            'text_location' => $rejectedOpportunity->text_location,
+            'map_location' => $rejectedOpportunity->map_location,
             'remarks' => $rejectedOpportunity->remarks,
             'created_by' => auth()->id(),
             'city_id' => $rejectedOpportunity->city_id,
@@ -309,7 +327,9 @@ class RejectedOpportunitiesController extends Controller
 
         \Log::info('Opportunity created from rejected opportunity', [
             'opportunity_id' => $opportunity->id,
-            'name' => $opportunity->potential_customer_name
+            'name' => $opportunity->potential_customer_name,
+            'text_location' => $opportunity->text_location,
+            'map_location' => $opportunity->map_location
         ]);
     }
 
@@ -322,8 +342,8 @@ class RejectedOpportunitiesController extends Controller
             'potential_customer_name' => $rejectedOpportunity->potential_customer_name,
             'email' => $rejectedOpportunity->email,
             'phone' => $rejectedOpportunity->phone,
-            'address' => $rejectedOpportunity->address,
-            'location' => $rejectedOpportunity->location,
+            'text_location' => $rejectedOpportunity->text_location,
+            'map_location' => $rejectedOpportunity->map_location,
             'remarks' => $rejectedOpportunity->remarks,
             'created_by' => auth()->id(),
             'status' => 'draft',
@@ -340,7 +360,9 @@ class RejectedOpportunitiesController extends Controller
 
         \Log::info('Potential Customer created from rejected opportunity', [
             'potential_customer_id' => $potentialCustomer->id,
-            'name' => $potentialCustomer->potential_customer_name
+            'name' => $potentialCustomer->potential_customer_name,
+            'text_location' => $potentialCustomer->text_location,
+            'map_location' => $potentialCustomer->map_location
         ]);
     }
 
@@ -353,8 +375,8 @@ class RejectedOpportunitiesController extends Controller
             'name' => $rejectedOpportunity->potential_customer_name,
             'email' => $rejectedOpportunity->email,
             'phone' => $rejectedOpportunity->phone,
-            'address' => $rejectedOpportunity->address,
-            'location' => $rejectedOpportunity->location,
+            'text_location' => $rejectedOpportunity->text_location,
+            'map_location' => $rejectedOpportunity->map_location,
             'remarks' => $rejectedOpportunity->remarks,
             'city_id' => $rejectedOpportunity->city_id,
             'subcity_id' => $rejectedOpportunity->subcity_id,
@@ -370,7 +392,9 @@ class RejectedOpportunitiesController extends Controller
 
         \Log::info('Customer created from rejected opportunity', [
             'customer_id' => $customer->id,
-            'name' => $customer->name
+            'name' => $customer->name,
+            'text_location' => $customer->text_location,
+            'map_location' => $customer->map_location
         ]);
     }
 

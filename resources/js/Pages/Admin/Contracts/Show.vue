@@ -1,114 +1,109 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex">
-    <!-- Loading State -->
-    <div v-if="loading.contract" class="flex-1 flex items-center justify-center">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-        <p class="mt-4 text-gray-600">Loading contract details...</p>
-      </div>
-    </div>
-
-    <!-- Error State -->
-    <div v-else-if="error" class="flex-1 flex items-center justify-center">
-      <div class="text-center max-w-md">
-        <ExclamationCircleIcon class="h-16 w-16 text-red-500 mx-auto mb-4" />
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Contract Not Found</h3>
-        <p class="text-gray-600 mb-6">The contract you're looking for could not be found or you don't have permission to view it.</p>
-        <button 
-          @click="goToCustomer"
-          class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 mx-auto"
-        >
-          <ArrowLeftIcon class="w-4 h-4" />
-          <span>Back to Customer</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Main Content -->
-    <div v-else class="flex-1 flex">
-      <!-- Mobile Sidebar Overlay -->
-      <div v-if="mobileSidebarOpen" class="fixed inset-0 flex z-40 lg:hidden">
-        <div class="fixed inset-0 bg-gray-600 bg-opacity-75" @click="mobileSidebarOpen = false"></div>
-        <div class="relative flex-1 flex flex-col max-w-xs w-full bg-white">
-          <div class="absolute top-0 right-0 -mr-12 pt-2">
-            <button
-              @click="mobileSidebarOpen = false"
-              class="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-            >
-              <XMarkIcon class="h-6 w-6 text-white" />
-            </button>
-          </div>
-          <Sidebar :tables="tables" />
-        </div>
-      </div>
-
-      <!-- Static sidebar for desktop -->
-      <div class="hidden lg:flex lg:flex-shrink-0">
-        <div class="flex flex-col w-64">
-          <Sidebar :tables="tables" />
-        </div>
-      </div>
-
-      <!-- Content Area -->
-      <div class="flex-1 flex flex-col">
-        <!-- Mobile top header -->
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 flex">
+    <!-- Sidebar - With higher z-index to appear above header -->
+    <Sidebar :tables="tables" />
+    
+    <div class="flex-1 min-w-0 flex flex-col overflow-hidden w-full">
+      <!-- Fixed Header Section - Lower z-index than sidebar -->
+      <div 
+        id="header-section"
+        class="sticky top-0 z-20 bg-white/90 backdrop-blur-lg border-b border-blue-200/30 shadow-sm transition-all duration-300 ease-in-out"
+        :class="{
+          'md:translate-x-0': isSidebarOpen,
+          'translate-x-0': !isSidebarOpen
+        }"
+      >
+        <!-- Mobile/Tablet Header -->
         <div class="lg:hidden">
-          <div class="flex items-center justify-between bg-white shadow-sm border-b border-gray-200 px-4 py-2">
-            <button
-              @click="mobileSidebarOpen = true"
-              class="text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <Bars3Icon class="h-6 w-6" />
-            </button>
-            <div class="flex-1 text-center">
-              <h1 class="text-lg font-semibold text-gray-900">Contract Details</h1>
+          <div class="flex items-center justify-between px-4 py-3">
+            <!-- Mobile spacing for sidebar hamburger button -->
+            <div class="w-12 flex-shrink-0"></div>
+            
+            <!-- Center: Title -->
+            <div class="flex-1 text-center min-w-0">
+              <h1 class="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2 truncate">
+                <span class="truncate">Contract Details</span>
+                <div class="w-5 h-5 bg-gradient-to-r from-blue-500/30 to-teal-500/30 rounded flex items-center justify-center flex-shrink-0">
+                  <DocumentTextIcon class="w-3 h-3 text-blue-600/70" />
+                </div>
+              </h1>
+              <p class="text-gray-600 text-xs mt-0.5 truncate">View and manage contract information</p>
             </div>
-            <div class="w-6"></div>
+            
+            <!-- Right spacer for balance -->
+            <div class="w-12 flex-shrink-0"></div>
           </div>
         </div>
 
-        <!-- Desktop Header -->
-        <div class="hidden lg:block bg-white shadow-sm border-b border-gray-200">
-          <div class="px-6 py-4">
+        <!-- Desktop Header (1024px and above) -->
+        <div class="hidden lg:block">
+          <div class="px-4 lg:px-6 py-4">
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
               <div class="flex items-center space-x-4">
                 <button 
                   @click="goToCustomer"
-                  class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2"
+                  class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm sm:text-base"
                 >
-                  <ArrowLeftIcon class="w-4 h-4" />
+                  <ArrowLeftIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>Back to Customer</span>
                 </button>
-                <div>
-                  <h1 class="text-2xl font-bold text-gray-900">Contract Details</h1>
-                  <p class="text-gray-600 mt-1">View and manage contract information</p>
+                <div class="min-w-0">
+                  <h1 class="text-xl lg:text-2xl font-bold text-gray-900 truncate">Contract Details</h1>
+                  <p class="text-gray-600 text-sm lg:text-base mt-1 truncate">View and manage contract information</p>
                 </div>
               </div>
               <div class="flex items-center space-x-3">
-                <span :class="getStatusBadgeClass(contract?.status)" class="px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+                <span :class="getStatusBadgeClass(contract?.status)" class="px-3 py-1.5 rounded-lg text-sm font-semibold shadow-sm">
                   {{ formatStatus(contract?.status) }}
                 </span>
                 <button 
                   v-if="contract?.file"
                   @click="downloadFile"
-                  class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-sm"
+                  class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 text-xs sm:text-sm"
                 >
-                  <ArrowDownTrayIcon class="w-4 h-4" />
+                  <ArrowDownTrayIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>Download File</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
+      <!-- Loading State -->
+      <div v-if="loading.contract" class="flex-1 flex items-center justify-center">
+        <div class="text-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <p class="mt-4 text-gray-600 text-sm sm:text-base">Loading contract details...</p>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="flex-1 flex items-center justify-center">
+        <div class="text-center max-w-md p-4 sm:p-6">
+          <ExclamationCircleIcon class="h-12 w-12 sm:h-16 sm:w-16 text-red-500 mx-auto mb-3 sm:mb-4" />
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Contract Not Found</h3>
+          <p class="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6">The contract you're looking for could not be found or you don't have permission to view it.</p>
+          <button 
+            @click="goToCustomer"
+            class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center space-x-2 mx-auto text-sm sm:text-base"
+          >
+            <ArrowLeftIcon class="w-4 h-4" />
+            <span>Back to Customer</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div v-else class="flex-1 overflow-hidden flex flex-col">
         <!-- Flash Messages -->
-        <div v-if="flashMessage" class="m-4 lg:m-6">
+        <div v-if="flashMessage" class="m-3 sm:m-4 lg:m-6">
           <div :class="flashMessageClass" class="rounded-lg p-4 shadow-sm border">
             <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
+              <div class="flex items-center space-x-2 sm:space-x-3">
                 <CheckCircleIcon v-if="flashMessageType === 'success'" class="w-5 h-5 text-green-500" />
                 <ExclamationCircleIcon v-else class="w-5 h-5 text-red-500" />
-                <p class="font-medium">{{ flashMessage }}</p>
+                <p class="font-medium text-sm sm:text-base">{{ flashMessage }}</p>
               </div>
               <button 
                 @click="clearFlashMessage" 
@@ -120,121 +115,121 @@
           </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="flex-1 p-4 lg:p-6">
-          <div class="max-w-7xl mx-auto">
+        <!-- Main Content Area -->
+        <div class="flex-1 overflow-auto">
+          <div class="pt-4 px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
             <!-- Main Content Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
               <!-- Left Column: Contract Information -->
-              <div class="lg:col-span-2 space-y-6">
+              <div class="lg:col-span-2 space-y-4 sm:space-y-6">
                 <!-- Contract Information -->
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div class="flex items-center space-x-4 mb-6">
-                    <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center">
-                      <DocumentTextIcon class="w-8 h-8 text-white" />
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                  <div class="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
+                    <div class="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                      <DocumentTextIcon class="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                     </div>
-                    <div class="flex-1">
-                      <h2 class="text-2xl font-bold text-gray-900">{{ contract?.contract_title || 'Untitled Contract' }}</h2>
-                      <p class="text-gray-600">Contract ID: #{{ contract?.id || 'N/A' }}</p>
-                      <div class="flex items-center space-x-2 mt-2">
-                        <span class="text-sm text-gray-500">Created by:</span>
-                        <span class="text-sm font-medium text-gray-700">{{ contract?.created_by?.name || 'N/A' }}</span>
-                        <span class="text-sm text-gray-500">on</span>
-                        <span class="text-sm font-medium text-gray-700">{{ formatDate(contract?.created_at) }}</span>
+                    <div class="flex-1 min-w-0">
+                      <h2 class="text-lg sm:text-2xl font-bold text-gray-900 truncate">{{ contract?.contract_title || 'Untitled Contract' }}</h2>
+                      <p class="text-gray-600 text-sm sm:text-base">Contract ID: #{{ contract?.id || 'N/A' }}</p>
+                      <div class="flex items-center flex-wrap gap-1 sm:gap-2 mt-1 sm:mt-2">
+                        <span class="text-xs sm:text-sm text-gray-500">Created by:</span>
+                        <span class="text-xs sm:text-sm font-medium text-gray-700">{{ contract?.created_by?.name || 'N/A' }}</span>
+                        <span class="text-xs sm:text-sm text-gray-500">on</span>
+                        <span class="text-xs sm:text-sm font-medium text-gray-700">{{ formatDate(contract?.created_at) }}</span>
                       </div>
                     </div>
                   </div>
 
                   <!-- Contract Details -->
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div class="space-y-4">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                    <div class="space-y-3 sm:space-y-4">
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Customer</label>
                         <div v-if="contract?.customer" class="flex items-center space-x-2">
-                          <UserCircleIcon class="w-5 h-5 text-gray-400" />
-                          <div>
-                            <p class="font-medium text-gray-900">{{ contract.customer.name || 'N/A' }}</p>
-                            <p class="text-sm text-gray-500">{{ contract.customer.email || 'N/A' }}</p>
+                          <UserCircleIcon class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                          <div class="min-w-0">
+                            <p class="font-medium text-gray-900 text-sm sm:text-base truncate">{{ contract.customer.name || 'N/A' }}</p>
+                            <p class="text-xs sm:text-sm text-gray-500 truncate">{{ contract.customer.email || 'N/A' }}</p>
                           </div>
                         </div>
-                        <p v-else class="text-gray-500">No customer assigned</p>
+                        <p v-else class="text-gray-500 text-sm sm:text-base">No customer assigned</p>
                       </div>
                       
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Proposal</label>
+                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Proposal</label>
                         <div v-if="contract?.proposal" class="flex items-center space-x-2">
-                          <DocumentTextIcon class="w-5 h-5 text-gray-400" />
-                          <div>
-                            <p class="font-medium text-gray-900">{{ contract.proposal.title || 'N/A' }}</p>
-                            <p class="text-sm text-gray-500">${{ formatNumber(contract.proposal.price) }}</p>
+                          <DocumentTextIcon class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                          <div class="min-w-0">
+                            <p class="font-medium text-gray-900 text-sm sm:text-base truncate">{{ contract.proposal.title || 'N/A' }}</p>
+                            <p class="text-xs sm:text-sm text-gray-500">${{ formatNumber(contract.proposal.price) }}</p>
                           </div>
                         </div>
-                        <p v-else class="text-gray-500">No linked proposal</p>
+                        <p v-else class="text-gray-500 text-sm sm:text-base">No linked proposal</p>
                       </div>
                       
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Contract Value</label>
-                        <p class="text-2xl font-bold text-teal-600">${{ formatNumber(contract?.total_value) }}</p>
+                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Contract Value</label>
+                        <p class="text-lg sm:text-2xl font-bold text-teal-600">${{ formatNumber(contract?.total_value) }}</p>
                       </div>
                     </div>
                     
-                    <div class="space-y-4">
+                    <div class="space-y-3 sm:space-y-4">
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Contract Period</label>
-                        <div class="space-y-2">
+                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Contract Period</label>
+                        <div class="space-y-1.5 sm:space-y-2">
                           <div class="flex justify-between">
-                            <span class="text-gray-600">Start Date:</span>
-                            <span class="font-medium text-gray-900">{{ formatDate(contract?.start_date) }}</span>
+                            <span class="text-gray-600 text-xs sm:text-sm">Start Date:</span>
+                            <span class="font-medium text-gray-900 text-xs sm:text-sm">{{ formatDate(contract?.start_date) }}</span>
                           </div>
                           <div class="flex justify-between">
-                            <span class="text-gray-600">End Date:</span>
-                            <span class="font-medium text-gray-900">{{ formatDate(contract?.end_date) }}</span>
+                            <span class="text-gray-600 text-xs sm:text-sm">End Date:</span>
+                            <span class="font-medium text-gray-900 text-xs sm:text-sm">{{ formatDate(contract?.end_date) }}</span>
                           </div>
                           <div class="flex justify-between">
-                            <span class="text-gray-600">Duration:</span>
-                            <span class="font-medium text-gray-900">{{ calculateDuration(contract?.start_date, contract?.end_date) }}</span>
+                            <span class="text-gray-600 text-xs sm:text-sm">Duration:</span>
+                            <span class="font-medium text-gray-900 text-xs sm:text-sm">{{ calculateDuration(contract?.start_date, contract?.end_date) }}</span>
                           </div>
                         </div>
                       </div>
                       
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Updated</label>
-                        <p class="text-gray-900 font-medium">{{ formatDate(contract?.updated_at) }}</p>
+                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Last Updated</label>
+                        <p class="text-gray-900 font-medium text-sm sm:text-base">{{ formatDate(contract?.updated_at) }}</p>
                       </div>
                     </div>
                   </div>
 
                   <!-- Contract Description -->
-                  <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Contract Description</label>
-                    <div class="bg-gray-50 rounded-lg p-4">
-                      <p class="text-gray-700 whitespace-pre-line">{{ contract?.contract_description || 'No description provided' }}</p>
+                  <div class="mb-4 sm:mb-6">
+                    <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Contract Description</label>
+                    <div class="bg-gray-50 rounded-lg p-3 sm:p-4">
+                      <p class="text-gray-700 whitespace-pre-line text-sm sm:text-base">{{ contract?.contract_description || 'No description provided' }}</p>
                     </div>
                   </div>
 
                   <!-- Payment Terms -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Payment Terms</label>
-                    <div class="bg-blue-50 rounded-lg p-4">
-                      <p class="text-gray-700 whitespace-pre-line">{{ contract?.payment_terms || 'No payment terms specified' }}</p>
+                    <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Payment Terms</label>
+                    <div class="bg-blue-50 rounded-lg p-3 sm:p-4">
+                      <p class="text-gray-700 whitespace-pre-line text-sm sm:text-base">{{ contract?.payment_terms || 'No payment terms specified' }}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <!-- Right Column: Timeline, Customer Info & Actions -->
-              <div class="space-y-6">
+              <div class="space-y-4 sm:space-y-6">
                 <!-- Action Buttons -->
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-                  <div class="space-y-3">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                  <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Actions</h3>
+                  <div class="space-y-2 sm:space-y-3">
                     <!-- View Customer Button -->
                     <button 
                       v-if="contract?.customer"
                       @click="viewCustomer"
-                      class="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
+                      class="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
                     >
-                      <EyeIcon class="w-4 h-4" />
+                      <EyeIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       <span>View Customer</span>
                     </button>
 
@@ -242,9 +237,9 @@
                     <button 
                       v-if="permissions?.edit"
                       @click="editContract"
-                      class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
+                      class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
                     >
-                      <PencilIcon class="w-4 h-4" />
+                      <PencilIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       <span>Edit Contract</span>
                     </button>
 
@@ -253,9 +248,9 @@
                       v-if="permissions?.approve && contract?.status === 'contract_created'"
                       @click="acceptContract"
                       :disabled="loading.accept"
-                      class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
+                      class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-300 disabled:to-green-300 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
                     >
-                      <CheckIcon class="w-4 h-4" />
+                      <CheckIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       <span v-if="loading.accept">Accepting...</span>
                       <span v-else>Accept Contract</span>
                     </button>
@@ -265,9 +260,9 @@
                       v-if="permissions?.reject && contract?.status === 'contract_created'"
                       @click="openRejectModal"
                       :disabled="loading.reject"
-                      class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-300 disabled:to-red-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
+                      class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-300 disabled:to-red-300 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
                     >
-                      <XMarkIcon class="w-4 h-4" />
+                      <XMarkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       <span v-if="loading.reject">Rejecting...</span>
                       <span v-else>Reject Contract</span>
                     </button>
@@ -277,9 +272,9 @@
                       v-if="permissions?.edit && contract?.status === 'accepted'"
                       @click="markAsUnsigned"
                       :disabled="loading.unsigned"
-                      class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 disabled:from-yellow-300 disabled:to-yellow-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
+                      class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 disabled:from-yellow-300 disabled:to-yellow-300 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
                     >
-                      <ArrowPathIcon class="w-4 h-4" />
+                      <ArrowPathIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       <span v-if="loading.unsigned">Updating...</span>
                       <span v-else>Mark as Unsigned</span>
                     </button>
@@ -288,73 +283,73 @@
                     <button 
                       v-if="permissions?.delete && contract?.status !== 'accepted'"
                       @click="deleteContract"
-                      class="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2"
+                      class="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm sm:text-base"
                     >
-                      <TrashIcon class="w-4 h-4" />
+                      <TrashIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       <span>Delete Contract</span>
                     </button>
                   </div>
                 </div>
 
                 <!-- Timeline -->
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Contract Timeline</h3>
-                  <div class="space-y-4">
-                    <div class="flex items-start space-x-3">
-                      <div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                  <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Contract Timeline</h3>
+                  <div class="space-y-3 sm:space-y-4">
+                    <div class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5 sm:mt-2"></div>
                       <div>
-                        <p class="text-sm font-medium text-gray-900">Contract Created</p>
-                        <p class="text-sm text-gray-500">{{ formatDate(contract?.created_at) }}</p>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Contract Created</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ formatDate(contract?.created_at) }}</p>
                       </div>
                     </div>
                     
-                    <div v-if="contract?.start_date" class="flex items-start space-x-3">
-                      <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                    <div v-if="contract?.start_date" class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-green-500 rounded-full mt-1.5 sm:mt-2"></div>
                       <div>
-                        <p class="text-sm font-medium text-gray-900">Contract Start</p>
-                        <p class="text-sm text-gray-500">{{ formatDate(contract.start_date) }}</p>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Contract Start</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ formatDate(contract.start_date) }}</p>
                       </div>
                     </div>
                     
-                    <div v-if="contract?.end_date" class="flex items-start space-x-3">
-                      <div class="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
+                    <div v-if="contract?.end_date" class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-red-500 rounded-full mt-1.5 sm:mt-2"></div>
                       <div>
-                        <p class="text-sm font-medium text-gray-900">Contract End</p>
-                        <p class="text-sm text-gray-500">{{ formatDate(contract.end_date) }}</p>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Contract End</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ formatDate(contract.end_date) }}</p>
                       </div>
                     </div>
                     
-                    <div v-if="contract?.customer_signed_at" class="flex items-start space-x-3">
-                      <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                    <div v-if="contract?.customer_signed_at" class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-green-500 rounded-full mt-1.5 sm:mt-2"></div>
                       <div>
-                        <p class="text-sm font-medium text-gray-900">Customer Signed</p>
-                        <p class="text-sm text-gray-500">{{ formatDate(contract.customer_signed_at) }}</p>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Customer Signed</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ formatDate(contract.customer_signed_at) }}</p>
                       </div>
                     </div>
                     
-                    <div v-if="contract?.customer_rejected_at" class="flex items-start space-x-3">
-                      <div class="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
+                    <div v-if="contract?.customer_rejected_at" class="flex items-start space-x-2 sm:space-x-3">
+                      <div class="w-2 h-2 bg-red-500 rounded-full mt-1.5 sm:mt-2"></div>
                       <div>
-                        <p class="text-sm font-medium text-gray-900">Customer Rejected</p>
-                        <p class="text-sm text-gray-500">{{ formatDate(contract.customer_rejected_at) }}</p>
-                        <p v-if="contract.customer_review" class="text-sm text-gray-500 mt-1">Reason: {{ contract.customer_review }}</p>
+                        <p class="text-xs sm:text-sm font-medium text-gray-900">Customer Rejected</p>
+                        <p class="text-xs sm:text-sm text-gray-500">{{ formatDate(contract.customer_rejected_at) }}</p>
+                        <p v-if="contract.customer_review" class="text-xs sm:text-sm text-gray-500 mt-1">Reason: {{ contract.customer_review }}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Customer Info -->
-                <div v-if="contract?.customer" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Customer Information</h3>
-                  <div class="space-y-3">
+                <div v-if="contract?.customer" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                  <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Customer Information</h3>
+                  <div class="space-y-2 sm:space-y-3">
                     <div>
                       <label class="block text-xs font-medium text-gray-500 mb-1">Name</label>
-                      <p class="text-sm font-medium text-gray-900">{{ contract.customer.name }}</p>
+                      <p class="text-sm font-medium text-gray-900 truncate">{{ contract.customer.name }}</p>
                     </div>
                     
                     <div>
                       <label class="block text-xs font-medium text-gray-500 mb-1">Email</label>
-                      <p class="text-sm text-gray-900">{{ contract.customer.email || 'N/A' }}</p>
+                      <p class="text-sm text-gray-900 truncate">{{ contract.customer.email || 'N/A' }}</p>
                     </div>
                     
                     <div>
@@ -364,7 +359,7 @@
                     
                     <div>
                       <label class="block text-xs font-medium text-gray-500 mb-1">Location</label>
-                      <p class="text-sm text-gray-900">{{ contract.customer.location || 'N/A' }}</p>
+                      <p class="text-sm text-gray-900 truncate">{{ contract.customer.location || 'N/A' }}</p>
                     </div>
                     
                     <div>
@@ -374,7 +369,7 @@
                       </span>
                     </div>
                     
-                    <div v-if="contract.customer.total_payment_amount" class="mt-4 pt-4 border-t border-gray-200">
+                    <div v-if="contract.customer.total_payment_amount" class="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
                       <label class="block text-xs font-medium text-gray-500 mb-1">Payment Summary</label>
                       <div class="space-y-1">
                         <div class="flex justify-between">
@@ -395,33 +390,33 @@
                 </div>
 
                 <!-- Contract File Section -->
-                <div v-if="contract?.file" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div class="mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Contract File</h3>
-                    <p class="text-gray-600 text-sm mt-1">Download the attached contract document</p>
+                <div v-if="contract?.file" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                  <div class="mb-3 sm:mb-4">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-900">Contract File</h3>
+                    <p class="text-gray-600 text-xs sm:text-sm mt-1">Download the attached contract document</p>
                   </div>
                   
-                  <div class="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                    <DocumentTextIcon class="w-12 h-12 text-blue-500" />
-                    <div class="flex-1">
-                      <p class="font-medium text-gray-900">{{ getFileName(contract.file) }}</p>
-                      <p class="text-sm text-gray-500">Contract document file</p>
+                  <div class="flex items-center space-x-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <DocumentTextIcon class="w-8 h-8 sm:w-12 sm:h-12 text-blue-500" />
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium text-gray-900 text-sm sm:text-base truncate">{{ getFileName(contract.file) }}</p>
+                      <p class="text-xs sm:text-sm text-gray-500">Contract document file</p>
                     </div>
                   </div>
                   
-                  <div class="flex gap-2 mt-4">
+                  <div class="flex gap-2 mt-3 sm:mt-4">
                     <button 
                       @click="viewFile"
-                      class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm"
+                      class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-xs sm:text-sm"
                     >
-                      <EyeIcon class="w-4 h-4" />
+                      <EyeIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       <span>View</span>
                     </button>
                     <button 
                       @click="downloadFile"
-                      class="flex-1 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-sm"
+                      class="flex-1 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow flex items-center justify-center space-x-2 text-xs sm:text-sm"
                     >
-                      <ArrowDownTrayIcon class="w-4 h-4" />
+                      <ArrowDownTrayIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       <span>Download</span>
                     </button>
                   </div>
@@ -435,13 +430,13 @@
 
     <!-- Reject Modal -->
     <div v-if="showRejectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-md border border-gray-200 shadow-xl">
-        <div class="flex items-center space-x-3 mb-4">
+      <div class="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md border border-gray-200 shadow-xl">
+        <div class="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
           <div class="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-lg sm:rounded-xl flex items-center justify-center">
             <XMarkIcon class="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
           </div>
-          <div>
-            <h3 class="text-base sm:text-lg font-bold text-gray-900">Reject Contract</h3>
+          <div class="min-w-0">
+            <h3 class="text-base sm:text-lg font-bold text-gray-900 truncate">Reject Contract</h3>
             <p class="text-gray-600 text-xs sm:text-sm">Please provide a reason for rejecting this contract</p>
           </div>
         </div>
@@ -453,11 +448,11 @@
           required
         ></textarea>
         
-        <div class="flex justify-end space-x-2 sm:space-x-3 mt-4 sm:mt-6">
+        <div class="flex justify-end space-x-2 sm:space-x-3 mt-3 sm:mt-4 sm:mt-6">
           <button 
             type="button"
             @click="closeRejectModal" 
-            class="px-3 py-2 sm:px-4 sm:py-2.5 text-gray-600 hover:text-gray-800 font-medium text-xs sm:text-sm transition-colors"
+            class="px-3 py-1.5 sm:px-4 sm:py-2.5 text-gray-600 hover:text-gray-800 font-medium text-xs sm:text-sm transition-colors"
           >
             Cancel
           </button>
@@ -465,7 +460,7 @@
             type="button"
             @click="rejectContract"
             :disabled="!rejectForm.reason.trim() || loading.reject"
-            class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-400 disabled:to-red-400 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg font-semibold transition-all duration-200 text-xs sm:text-sm shadow hover:shadow-lg disabled:cursor-not-allowed"
+            class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-400 disabled:to-red-400 text-white px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg font-semibold transition-all duration-200 text-xs sm:text-sm shadow hover:shadow-lg disabled:cursor-not-allowed"
           >
             <span v-if="loading.reject">Rejecting...</span>
             <span v-else>Reject Contract</span>
@@ -490,7 +485,6 @@ import {
   UserCircleIcon,
   PencilIcon,
   TrashIcon,
-  Bars3Icon,
   CheckCircleIcon,
   ExclamationCircleIcon,
   DocumentTextIcon
@@ -520,7 +514,6 @@ const props = defineProps({
 })
 
 // State
-const mobileSidebarOpen = ref(false)
 const showRejectModal = ref(false)
 const loading = reactive({
   accept: false,
@@ -541,11 +534,37 @@ const rejectForm = reactive({
 const flashMessage = ref(props.flash?.message || '')
 const flashMessageType = ref(props.flash?.type || 'success')
 
+// Sidebar state
+const isSidebarOpen = ref(false)
+
 // Computed
 const flashMessageClass = computed(() => {
   return flashMessageType.value === 'success'
     ? 'bg-green-50 border-green-200 text-green-800'
     : 'bg-red-50 border-red-200 text-red-800'
+})
+
+// Listen for sidebar state changes
+onMounted(() => {
+  const handleSidebarStateChange = (event) => {
+    isSidebarOpen.value = event.detail.isOpen
+  }
+  
+  window.addEventListener('sidebar:state-changed', handleSidebarStateChange)
+  
+  const checkInitialSidebarState = () => {
+    const mobileMenuBtn = document.getElementById('mobile-menu-toggle')
+    const sidebar = document.querySelector('aside')
+    if (mobileMenuBtn && sidebar) {
+      isSidebarOpen.value = sidebar.classList.contains('translate-x-0')
+    }
+  }
+  
+  setTimeout(checkInitialSidebarState, 100)
+  
+  return () => {
+    window.removeEventListener('sidebar:state-changed', handleSidebarStateChange)
+  }
 })
 
 // Watch for contract prop changes
@@ -817,4 +836,38 @@ onMounted(() => {
 
 <style scoped>
 /* Add any custom styles if needed */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Ensure proper mobile scrolling */
+@media (max-width: 1023px) {
+  .max-h-[90vh] {
+    max-height: 85vh;
+  }
+}
+
+/* Header transition */
+#header-section {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ensure proper z-index layering */
+#header-section {
+  z-index: 20 !important;
+}
+
+/* Prevent horizontal overflow */
+html, body {
+  overflow-x: hidden;
+}
 </style>

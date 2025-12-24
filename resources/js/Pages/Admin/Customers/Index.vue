@@ -1,82 +1,54 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex">
-    <!-- Mobile Sidebar Overlay -->
-    <div v-if="mobileSidebarOpen" class="fixed inset-0 flex z-40 lg:hidden">
-      <div class="fixed inset-0 bg-gray-600 bg-opacity-75" @click="mobileSidebarOpen = false"></div>
-      <div class="relative flex-1 flex flex-col max-w-xs w-full bg-white">
-        <div class="absolute top-0 right-0 -mr-12 pt-2">
-          <button
-            @click="mobileSidebarOpen = false"
-            class="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-          >
-            <XMarkIcon class="h-6 w-6 text-white" />
-          </button>
-        </div>
-        <Sidebar :tables="tables" />
-      </div>
-    </div>
-
-    <!-- Static sidebar for desktop -->
-    <div class="hidden lg:flex lg:flex-shrink-0">
-      <div class="flex flex-col w-64">
-        <Sidebar :tables="tables" />
-      </div>
-    </div>
-
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 flex">
+    <!-- Sidebar -->
+    <Sidebar :tables="tables" />
+    
+    <!-- Main Content Area -->
     <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
-      <!-- Fixed Header Section -->
-      <div class="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
-        <!-- Mobile top header -->
-        <div class="lg:hidden">
-          <div class="flex items-center justify-between px-4 py-3">
-            <button
-              @click="mobileSidebarOpen = true"
-              class="text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 p-1 rounded-lg"
-            >
-              <Bars3Icon class="h-6 w-6" />
-            </button>
-            <div class="flex-1 text-center">
-              <h1 class="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2">
-                <span>Customers</span>
-                <div class="w-5 h-5 bg-gradient-to-r from-teal-400/30 to-blue-400/30 rounded flex items-center justify-center">
-                  <UserGroupIcon class="w-3 h-3 text-teal-600/70" />
+      <!-- Mobile/Tablet Header -->
+      <div class="lg:hidden sticky top-0 z-20 bg-white shadow-sm border-b border-gray-200">
+        <div class="flex items-center justify-between px-4 py-3">
+          <div class="w-12 flex-shrink-0"></div>
+          <div class="flex-1 text-center min-w-0">
+            <h1 class="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2 truncate">
+              <span class="truncate">Customers</span>
+              <div class="w-5 h-5 bg-gradient-to-r from-blue-400/30 to-blue-500/30 rounded flex items-center justify-center flex-shrink-0">
+                <UserGroupIcon class="w-3 h-3 text-blue-600/70" />
+              </div>
+            </h1>
+          </div>
+          <div class="w-12 flex-shrink-0"></div>
+        </div>
+      </div>
+    
+      <!-- Desktop Header -->
+      <div class="hidden lg:block sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
+        <div class="px-6 py-4">
+          <div class="flex justify-between items-center">
+            <div class="min-w-0">
+              <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-3 truncate">
+                <span class="truncate">Customers</span>
+                <div class="w-7 h-7 bg-gradient-to-r from-teal-400/30 to-blue-400/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <UserGroupIcon class="w-4 h-4 text-teal-600/70" />
                 </div>
               </h1>
-            </div>
-            <div class="w-6"></div>
-          </div>
-        </div>
-
-        <!-- Desktop Header -->
-        <div class="hidden lg:block">
-          <div class="px-6 py-4">
-            <div class="flex justify-between items-center">
-              <div>
-                <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                  <span>Customers</span>
-                  <div class="w-7 h-7 bg-gradient-to-r from-teal-400/30 to-blue-400/30 rounded-lg flex items-center justify-center">
-                    <UserGroupIcon class="w-4 h-4 text-teal-600/70" />
-                  </div>
-                </h1>
-                <p class="text-gray-600 mt-1">Manage and review approved customers</p>
-              </div>
-              <!-- Removed Add Customer button -->
+              <p class="text-gray-600 mt-1 truncate">Manage and review approved customers</p>
             </div>
           </div>
         </div>
 
         <!-- Flash Messages -->
-        <div v-if="flashMessage" class="px-4 lg:px-6 py-2">
-          <div :class="flashMessageClass" class="rounded-lg p-4 shadow-sm border">
+        <div v-if="flashMessage" class="px-3 md:px-4 lg:px-6 py-2">
+          <div :class="flashMessageClass" class="rounded-lg p-3 md:p-4 shadow-sm border">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3">
-                <CheckCircleIcon v-if="flashMessageType === 'success'" class="w-5 h-5 text-green-500" />
-                <ExclamationCircleIcon v-else class="w-5 h-5 text-red-500" />
-                <p class="font-medium">{{ flashMessage }}</p>
+                <CheckCircleIcon v-if="flashMessageType === 'success'" class="w-5 h-5 text-green-500 flex-shrink-0" />
+                <ExclamationCircleIcon v-else class="w-5 h-5 text-red-500 flex-shrink-0" />
+                <p class="font-medium text-sm truncate">{{ flashMessage }}</p>
               </div>
               <button 
                 @click="clearFlashMessage" 
-                class="text-gray-400 hover:text-gray-600"
+                class="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
                 <XMarkIcon class="w-5 h-5" />
               </button>
@@ -85,464 +57,358 @@
         </div>
       </div>
 
-      <!-- Main Content - Fixed height with overflow -->
-      <div class="flex-1 overflow-hidden flex flex-col">
+      <!-- Main Content -->
+      <div class="flex-1 overflow-auto">
         <!-- Compact Filters Section -->
-        <div class="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4 filters-section">
-          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <!-- Left side: Search and Status Filters -->
-            <div class="flex-1">
-              <div class="flex flex-col lg:flex-row lg:items-center gap-3">
-                <!-- Search Input -->
-                <div class="relative flex-1">
-                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon class="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    v-model="search"
-                    type="text"
-                    placeholder="Search customers..."
-                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                  />
+        <div class="bg-white border-b border-gray-200 px-3 md:px-4 lg:px-6 py-3 md:py-4 filters-section">
+          <div class="flex flex-col gap-3">
+            <!-- Search and Status Filters -->
+            <div class="flex flex-col md:flex-row md:items-center gap-3">
+              <!-- Search Input -->
+              <div class="relative flex-1 min-w-0">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon class="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
                 </div>
+                <input
+                  v-model="search"
+                  @input="onSearchInput"
+                  type="text"
+                  placeholder="Search customers..."
+                  class="block w-full pl-9 md:pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 truncate transition-all duration-300"
+                />
+              </div>
 
-                <!-- Status Filters -->
-                <div class="flex items-center gap-2">
-                  <span class="text-sm font-medium text-gray-700 hidden lg:block">Status:</span>
-                  <div class="flex flex-wrap gap-2">
-                    <button 
-                      v-for="filter in statusFilters"
-                      :key="filter.key"
-                      @click="setStatusFilter(filter.key)"
-                      class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow"
-                      :class="getFilterButtonClass(filter.key)"
-                    >
-                      <span class="font-bold mr-1.5 text-white bg-white/20 px-1 py-0.5 rounded">
-                        {{ getFilterCount(filter.key) }}
-                      </span>
-                      <span>{{ filter.label }}</span>
-                      <component 
-                        :is="getFilterIcon(filter.key)" 
-                        class="ml-1.5 w-3 h-3" 
-                      />
-                    </button>
-                  </div>
-                </div>
+              <!-- Status Filters -->
+              <div class="flex flex-wrap gap-2">
+                <button 
+                  v-for="filter in statusFilters"
+                  :key="filter.key"
+                  @click="setStatusFilter(filter.key)"
+                  class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 shadow-sm hover:shadow whitespace-nowrap"
+                  :class="getFilterButtonClass(filter.key)"
+                >
+                  <span class="font-bold mr-1.5 text-white bg-white/20 px-1 py-0.5 rounded">
+                    {{ getFilterCount(filter.key) }}
+                  </span>
+                  <span class="truncate">{{ filter.label }}</span>
+                </button>
               </div>
             </div>
 
-            <!-- Right side: Additional Filters -->
-            <div class="flex items-center gap-3">
-              <!-- Advanced Filters Dropdown -->
-              <div class="relative">
+            <!-- Advanced Filters -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
                 <button
                   @click="isFilterExpanded = !isFilterExpanded"
-                  class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-200 shadow-sm hover:shadow"
+                  class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300 shadow-sm hover:shadow whitespace-nowrap"
                 >
-                  <FunnelIcon class="w-4 h-4" />
-                  <span>Advanced Filters</span>
-                  <ChevronDownIcon class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': isFilterExpanded}" />
+                  <FunnelIcon class="w-4 h-4 flex-shrink-0" />
+                  <span class="truncate">Advanced Filters</span>
+                  <ChevronDownIcon class="w-4 h-4 transition-transform duration-300 flex-shrink-0" :class="{'rotate-180': isFilterExpanded}" />
                 </button>
 
-                <!-- Expanded Filters Dropdown -->
-                <div v-if="isFilterExpanded" class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                  <div class="p-4">
-                    <div class="flex items-center justify-between mb-3">
-                      <h3 class="text-sm font-semibold text-gray-900">Advanced Filters</h3>
-                      <button @click="isFilterExpanded = false" class="text-gray-400 hover:text-gray-600">
-                        <XMarkIcon class="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <!-- City Filter -->
-                    <div class="mb-4">
-                      <label class="block text-xs font-medium text-gray-700 mb-2 flex items-center">
-                        <BuildingOfficeIcon class="w-4 h-4 mr-1 text-blue-500" />
-                        <span>City</span>
-                      </label>
-                      <div class="relative">
-                        <select
-                          v-model="cityFilter"
-                          @change="onCityFilterChange"
-                          class="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none"
-                        >
-                          <option value="">All Cities</option>
-                          <option v-for="city in cities" :key="city.id" :value="city.id">
-                            {{ city.name }}
-                          </option>
-                        </select>
-                        <BuildingOfficeIcon class="absolute left-3 top-2.5 w-4 h-4 text-blue-500 pointer-events-none" />
-                        <ChevronDownIcon class="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    <!-- Payment Status Filter -->
-                    <div class="mb-4">
-                      <label class="block text-xs font-medium text-gray-700 mb-2 flex items-center">
-                        <CreditCardIcon class="w-4 h-4 mr-1 text-green-500" />
-                        <span>Payment Status</span>
-                      </label>
-                      <div class="relative">
-                        <select
-                          v-model="paymentStatusFilter"
-                          class="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white appearance-none"
-                        >
-                          <option value="">All Payment Status</option>
-                          <option value="paid">Paid</option>
-                          <option value="half_paid">Half Paid</option>
-                          <option value="pending">Pending</option>
-                          <option value="not_paid">Not Paid</option>
-                        </select>
-                        <CreditCardIcon class="absolute left-3 top-2.5 w-4 h-4 text-green-500 pointer-events-none" />
-                        <ChevronDownIcon class="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex gap-2 pt-3 border-t border-gray-200">
-                      <button
-                        @click="clearAllFilters"
-                        class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center justify-center gap-1"
-                        :disabled="!hasActiveFilters"
-                        :class="{'opacity-50 cursor-not-allowed': !hasActiveFilters}"
-                      >
-                        <ArrowPathIcon class="w-4 h-4" />
-                        Clear All
-                      </button>
-                      <button
-                        @click="applyFilters"
-                        class="flex-1 px-3 py-2 text-sm font-medium text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-lg transition-all duration-200 shadow-sm hover:shadow"
-                      >
-                        <CheckIcon class="w-4 h-4 inline mr-1" />
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Active Filters Badge -->
-              <div v-if="hasActiveFilters" class="flex items-center">
+                <!-- Active Filters Badge -->
                 <button
+                  v-if="hasActiveFilters"
                   @click="clearAllFilters"
-                  class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-red-500 to-orange-500 rounded-lg hover:from-red-600 hover:to-orange-600 transition-all duration-200 shadow-sm hover:shadow"
+                  class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-red-500 to-orange-500 rounded-lg hover:from-red-600 hover:to-orange-600 transition-all duration-300 shadow-sm hover:shadow whitespace-nowrap"
                 >
-                  <XMarkIcon class="w-3 h-3 mr-1" />
+                  <XMarkIcon class="w-3 h-3 mr-1 flex-shrink-0" />
                   Clear Filters ({{ activeFilterCount }})
                 </button>
               </div>
             </div>
-          </div>
 
-          <!-- Active Filters Tags -->
-          <div v-if="hasActiveFilters && activeFilterTags.length > 0" class="mt-2">
-            <div class="flex flex-wrap gap-1.5">
-              <div 
-                v-for="tag in activeFilterTags"
-                :key="tag.key"
-                class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border shadow-sm"
-                :class="tag.class"
-              >
-                <component :is="tag.icon" class="w-3 h-3 mr-1.5" />
-                <span>{{ tag.label }}</span>
-                <button @click="tag.remove()" class="ml-1.5 hover:opacity-75">
-                  <XMarkIcon class="w-3 h-3" />
-                </button>
+            <!-- Expanded Filters Dropdown -->
+            <transition name="dropdown">
+              <div v-if="isFilterExpanded" class="bg-white rounded-lg shadow border border-gray-200 p-4 transition-all duration-300">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- City Filter -->
+                  <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-2 flex items-center">
+                      <BuildingOfficeIcon class="w-4 h-4 mr-1 text-blue-500 flex-shrink-0" />
+                      <span>City</span>
+                    </label>
+                    <select
+                      v-model="cityFilter"
+                      @change="onCityFilterChange"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none transition-all duration-300"
+                    >
+                      <option value="">All Cities</option>
+                      <option v-for="city in cities" :key="city.id" :value="city.id">
+                        {{ city.name }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Payment Status Filter -->
+                  <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-2 flex items-center">
+                      <CreditCardIcon class="w-4 h-4 mr-1 text-green-500 flex-shrink-0" />
+                      <span>Payment Status</span>
+                    </label>
+                    <select
+                      v-model="paymentStatusFilter"
+                      @change="onPaymentStatusChange"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white appearance-none transition-all duration-300"
+                    >
+                      <option value="">All Payment Status</option>
+                      <option value="paid">Paid</option>
+                      <option value="half_paid">Half Paid</option>
+                      <option value="pending">Pending</option>
+                      <option value="not_paid">Not Paid</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Active Filters Tags -->
+                <div v-if="hasActiveFilters && activeFilterTags.length > 0" class="mt-4 pt-4 border-t border-gray-200">
+                  <div class="flex flex-wrap gap-1.5">
+                    <div 
+                      v-for="tag in activeFilterTags"
+                      :key="tag.key"
+                      class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border shadow-sm whitespace-nowrap transition-all duration-300"
+                      :class="tag.class"
+                    >
+                      <component :is="tag.icon" class="w-3 h-3 mr-1.5 flex-shrink-0" />
+                      <span class="truncate">{{ tag.label }}</span>
+                      <button @click="tag.remove()" class="ml-1.5 hover:opacity-75 flex-shrink-0 transition-all duration-200">
+                        <XMarkIcon class="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            </transition>
           </div>
         </div>
 
-        <!-- Main Content Area with Scrolling -->
-        <div class="flex-1 overflow-auto">
-          <div class="p-4 lg:p-6">
-            <!-- Loading State -->
-            <div v-if="loading" class="flex items-center justify-center p-8">
-              <div class="text-center">
-                <div class="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p class="text-gray-600">Loading customers...</p>
+        <!-- Main Content Area -->
+        <div class="p-3 md:p-4 lg:p-5">
+          <!-- Loading State -->
+          <div v-if="loading" class="flex items-center justify-center p-8">
+            <div class="text-center">
+              <div class="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p class="text-gray-600">Loading customers...</p>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="!hasCustomers" class="bg-white rounded-lg border border-gray-200 p-6 text-center shadow-sm">
+            <div class="w-16 h-16 bg-gradient-to-br from-teal-100 to-teal-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <UserGroupIcon class="w-8 h-8 text-teal-600" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">No customers found</h3>
+            <p class="text-gray-600 mb-4 max-w-md mx-auto text-sm">
+              Customer records will appear here after approval from potential customers.
+            </p>
+            <button 
+              @click="clearAllFilters"
+              class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white text-sm font-medium rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-300 shadow-sm hover:shadow"
+            >
+              <ArrowPathIcon class="w-4 h-4 mr-2" />
+              Clear Filters
+            </button>
+          </div>
+
+          <!-- Customers Content -->
+          <div v-else class="space-y-4">
+            <!-- Stats Summary -->
+            <div class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900">Customer Records</h3>
+                  <p class="text-gray-600 text-xs mt-0.5">
+                    Showing {{ filteredCustomers.length }} of {{ totalCustomers }} results
+                    <span v-if="statusFilter !== 'all'" class="ml-2 px-1.5 py-0.5 rounded text-xs" :class="getFilterButtonClass(statusFilter)">
+                      {{ getStatusLabel(statusFilter) }}
+                    </span>
+                  </p>
+                </div>
+                <div class="text-xs text-gray-500">
+                  Page {{ customers.meta?.current_page || 1 }} of {{ customers.meta?.last_page || 1 }}
+                </div>
               </div>
             </div>
 
-            <!-- Empty State -->
-            <div v-else-if="!hasCustomers" class="bg-white rounded-lg border border-gray-200 p-6 lg:p-8 text-center">
-              <div class="w-16 h-16 bg-gradient-to-br from-teal-100 to-teal-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <UserGroupIcon class="w-8 h-8 text-teal-600" />
-              </div>
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">No customers found</h3>
-              <p class="text-gray-600 mb-4 max-w-md mx-auto text-sm">
-                Customer records will appear here after approval from potential customers.
-              </p>
-              <button 
-                @click="clearAllFilters"
-                class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white text-sm font-medium rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-sm hover:shadow"
+            <!-- Customers Grid - Mobile & Desktop -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div 
+                v-for="customer in filteredCustomers" 
+                :key="customer?.id"
+                class="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all duration-300"
               >
-                <ArrowPathIcon class="w-4 h-4 mr-2" />
-                Clear Filters
-              </button>
+                <!-- Customer Header -->
+                <div class="flex items-start justify-between mb-3">
+                  <div class="flex items-center space-x-3 min-w-0">
+                    <div class="relative flex-shrink-0">
+                      <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <UserCircleIcon class="w-5 h-5 text-white" />
+                      </div>
+                      <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full border border-white shadow-sm">
+                        <div class="w-full h-full rounded-full" :class="getStatusDotClass(customer?.status)"></div>
+                      </div>
+                    </div>
+                    <div class="min-w-0">
+                      <h3 class="font-semibold text-gray-900 text-sm truncate">
+                        {{ customer?.name || 'Unknown Customer' }}
+                      </h3>
+                      <p class="text-gray-500 text-xs truncate">
+                        {{ customer?.email || 'No email' }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-xs font-medium text-gray-600">ID: {{ customer?.id || 'N/A' }}</div>
+                    <div class="text-xs text-gray-500">{{ formatDate(customer?.updated_at) }}</div>
+                  </div>
+                </div>
+
+                <!-- Customer Details -->
+                <div class="space-y-3">
+                  <!-- Contact -->
+                  <div class="flex items-center space-x-2">
+                    <PhoneIcon class="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span class="text-sm text-gray-700 truncate">{{ customer?.phone || 'No phone' }}</span>
+                  </div>
+
+                  <!-- Location -->
+                  <div class="flex items-start space-x-2">
+                    <BuildingOfficeIcon class="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div class="min-w-0">
+                      <span class="text-sm text-gray-900">
+                        {{ customer?.city?.name || 'No city' }}
+                        <span v-if="customer?.subcity" class="text-gray-600">
+                          / {{ customer.subcity.name }}
+                        </span>
+                      </span>
+                      <div v-if="customer?.text_location" class="text-xs text-gray-500 truncate mt-0.5">
+                        {{ truncateText(customer.text_location, 40) }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Payment Status -->
+                  <div>
+                    <div class="flex items-center justify-between mb-1">
+                      <span :class="getPaymentStatusBadgeClass(customer?.payment_status)" 
+                        class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-lg shadow-sm">
+                        <CreditCardIcon class="w-3 h-3 mr-1" />
+                        {{ formatPaymentStatus(customer?.payment_status) }}
+                      </span>
+                      <div class="text-xs font-medium text-gray-900">
+                        ${{ formatNumber(customer?.paid_amount || 0) }}/${{ formatNumber(customer?.total_payment_amount || 0) }}
+                      </div>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5">
+                      <div 
+                        class="h-1.5 rounded-full transition-all duration-500"
+                        :class="getPaymentProgressClass(customer?.payment_status)"
+                        :style="{ width: (customer?.payment_progress || 0) + '%' }"
+                      ></div>
+                    </div>
+                  </div>
+
+                  <!-- Commission -->
+                  <div v-if="customer?.commission_user" class="space-y-2">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center min-w-0">
+                        <div class="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                          <UserIcon class="w-3 h-3 text-white" />
+                        </div>
+                        <span class="text-xs font-medium text-gray-900 truncate">
+                          {{ customer.commission_user.name }}
+                        </span>
+                      </div>
+                      <span class="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded">
+                        {{ customer.commission_rate }}%
+                      </span>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-600">
+                      <span>Commission: ${{ formatNumber(customer?.commission_amount || 0) }}</span>
+                      <span>Paid: ${{ formatNumber(customer?.paid_commission || 0) }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="text-center py-2">
+                    <span class="text-xs text-gray-500 italic">No commission assigned</span>
+                  </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
+                  <div class="text-xs text-gray-600 font-medium">
+                    Status: {{ formatStatus(customer?.status) }}
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <button 
+                      @click="viewCustomerDetails(customer)"
+                      class="bg-teal-500 hover:bg-teal-600 text-white p-1.5 rounded-lg text-xs font-medium transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow"
+                      title="View Details"
+                    >
+                      <EyeIcon class="w-3.5 h-3.5" />
+                    </button>
+                    <button 
+                      v-if="permissions.edit"
+                      @click="editCustomer(customer)"
+                      class="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-lg text-xs font-medium transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow"
+                      title="Edit Customer"
+                    >
+                      <PencilIcon class="w-3.5 h-3.5" />
+                    </button>
+                    <button 
+                      v-if="permissions.delete"
+                      @click="deleteCustomer(customer.id)"
+                      class="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-lg text-xs font-medium transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow"
+                      title="Delete Customer"
+                    >
+                      <TrashIcon class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <!-- Customers Table -->
-            <div v-else class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-              <!-- Table Summary -->
-              <div class="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                  <div>
-                    <h3 class="text-sm font-semibold text-gray-900">Customer Records</h3>
-                    <p class="text-gray-600 text-xs mt-0.5">
-                      Showing {{ filteredCustomers.length }} of {{ totalCustomers }} results
-                      <span v-if="statusFilter !== 'all'" class="ml-2 px-1.5 py-0.5 rounded text-xs" :class="getFilterButtonClass(statusFilter)">
-                        {{ getStatusLabel(statusFilter) }}
-                      </span>
-                    </p>
-                  </div>
-                  <div class="text-xs text-gray-500">
-                    Page {{ customers.meta?.current_page || 1 }} of {{ customers.meta?.last_page || 1 }}
-                  </div>
+            <!-- Pagination -->
+            <div v-if="customers.links && customers.links.length > 3" class="bg-white rounded-lg border border-gray-200 p-4">
+              <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div class="text-xs text-gray-600">
+                  Showing {{ customers.meta?.from || 0 }}-{{ customers.meta?.to || 0 }} of {{ customers.meta?.total || 0 }}
                 </div>
-              </div>
-              
-              <!-- Table Container -->
-              <div class="overflow-x-auto">
-                <div class="min-w-full inline-block align-middle">
-                  <div class="overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
-                      <thead class="bg-gray-50">
-                        <tr>
-                          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div class="flex items-center">
-                              <UserCircleIcon class="w-4 h-4 mr-2 text-teal-500" />
-                              <span>Customer</span>
-                            </div>
-                          </th>
-                          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div class="flex items-center">
-                              <EnvelopeIcon class="w-4 h-4 mr-2 text-green-500" />
-                              <span>Contact</span>
-                            </div>
-                          </th>
-                          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div class="flex items-center">
-                              <MapPinIcon class="w-4 h-4 mr-2 text-purple-500" />
-                              <span>Location</span>
-                            </div>
-                          </th>
-                          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div class="flex items-center">
-                              <CreditCardIcon class="w-4 h-4 mr-2 text-blue-500" />
-                              <span>Payment Status</span>
-                            </div>
-                          </th>
-                          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div class="flex items-center">
-                              <TagIcon class="w-4 h-4 mr-2 text-orange-500" />
-                              <span>Commission</span>
-                            </div>
-                          </th>
-                          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div class="flex items-center">
-                              <Cog6ToothIcon class="w-4 h-4 mr-2 text-gray-500" />
-                              <span>Actions</span>
-                            </div>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody class="bg-white divide-y divide-gray-200">
-                        <tr 
-                          v-for="customer in filteredCustomers" 
-                          :key="customer?.id" 
-                          class="hover:bg-teal-50/30 transition-all duration-150"
-                        >
-                          <!-- Customer Column -->
-                          <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="flex items-center">
-                              <div class="relative">
-                                <div class="w-8 h-8 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center shadow-sm">
-                                  <UserCircleIcon class="w-4 h-4 text-white" />
-                                </div>
-                                <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full border border-white shadow-sm">
-                                  <div class="w-full h-full rounded-full" :class="getStatusDotClass(customer?.status)"></div>
-                                </div>
-                              </div>
-                              <div class="ml-3">
-                                <div class="font-semibold text-gray-900 text-sm truncate max-w-[120px]">
-                                  {{ customer?.name || 'Unknown Customer' }}
-                                </div>
-                                <div class="text-gray-500 text-xs truncate max-w-[120px]">
-                                  ID: {{ customer?.id || 'N/A' }}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
+                <div class="flex items-center gap-1">
+                  <!-- Previous Page -->
+                  <button 
+                    v-if="customers.links[0].url"
+                    @click="visitPage(customers.links[0].url)"
+                    class="p-2 text-gray-600 hover:text-white hover:bg-gradient-to-r hover:from-teal-500 hover:to-teal-600 rounded-lg transition-all duration-300 shadow-sm hover:shadow"
+                    title="Previous"
+                  >
+                    <ChevronLeftIcon class="w-4 h-4" />
+                  </button>
 
-                          <!-- Contact Column -->
-                          <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="space-y-1">
-                              <div class="flex items-center text-gray-900 text-sm">
-                                <EnvelopeIcon class="w-3 h-3 mr-1.5 text-gray-400 flex-shrink-0" />
-                                <span class="truncate max-w-[120px]">{{ customer?.email || 'No email' }}</span>
-                              </div>
-                              <div class="flex items-center text-gray-500 text-xs">
-                                <PhoneIcon class="w-3 h-3 mr-1.5 text-gray-400 flex-shrink-0" />
-                                <span class="truncate max-w-[120px]">{{ customer?.phone || 'No phone' }}</span>
-                              </div>
-                            </div>
-                          </td>
-
-                          <!-- Location Column -->
-                          <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="space-y-1">
-                              <div class="flex items-center text-gray-900 text-sm">
-                                <BuildingOfficeIcon class="w-3 h-3 mr-1.5 text-blue-500 flex-shrink-0" />
-                                <span class="truncate max-w-[100px]">{{ customer?.city?.name || 'No city' }}</span>
-                              </div>
-                              <div class="flex items-center text-gray-500 text-xs">
-                                <MapPinIcon class="w-3 h-3 mr-1.5 text-gray-400 flex-shrink-0" />
-                                <span class="truncate max-w-[100px]">{{ customer?.specific_location || 'No location' }}</span>
-                              </div>
-                            </div>
-                          </td>
-
-                          <!-- Payment Status Column -->
-                          <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="flex flex-col">
-                              <span :class="getPaymentStatusBadgeClass(customer?.payment_status)" 
-                                class="inline-flex items-center justify-center px-2.5 py-1 text-xs font-semibold rounded-lg shadow-sm">
-                                <CreditCardIcon class="w-3 h-3 mr-1.5" />
-                                {{ formatPaymentStatus(customer?.payment_status) }}
-                              </span>
-                              <div class="mt-2">
-                                <div class="flex justify-between text-xs text-gray-600 mb-1">
-                                  <span>Progress</span>
-                                  <span>{{ customer?.payment_progress || 0 }}%</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                  <div 
-                                    class="h-1.5 rounded-full transition-all duration-500"
-                                    :class="getPaymentProgressClass(customer?.payment_status)"
-                                    :style="{ width: (customer?.payment_progress || 0) + '%' }"
-                                  ></div>
-                                </div>
-                                <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                  <span>${{ formatNumber(customer?.paid_amount || 0) }}</span>
-                                  <span>${{ formatNumber(customer?.total_payment_amount || 0) }}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          <!-- Commission Column -->
-                          <td class="px-4 py-3 whitespace-nowrap">
-                            <div v-if="customer?.commission_user" class="space-y-2">
-                              <div class="flex items-center justify-between">
-                                <div class="flex items-center">
-                                  <div class="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mr-2">
-                                    <UserIcon class="w-3 h-3 text-white" />
-                                  </div>
-                                  <span class="text-xs font-medium text-gray-900 truncate max-w-[80px]">
-                                    {{ customer.commission_user.name }}
-                                  </span>
-                                </div>
-                                <span class="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded">
-                                  {{ customer.commission_rate }}%
-                                </span>
-                              </div>
-                              <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                <div 
-                                  class="h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
-                                  :style="{ width: (customer?.commission_progress || 0) + '%' }"
-                                ></div>
-                              </div>
-                              <div class="flex justify-between text-xs">
-                                <span class="text-gray-600">${{ formatNumber(customer?.paid_commission || 0) }}</span>
-                                <span class="text-gray-800 font-medium">${{ formatNumber(customer?.commission_amount || 0) }}</span>
-                              </div>
-                            </div>
-                            <div v-else class="text-center py-2">
-                              <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-1">
-                                <UserIcon class="w-4 h-4 text-gray-400" />
-                              </div>
-                              <span class="text-xs text-gray-500">No commission</span>
-                            </div>
-                          </td>
-
-                          <!-- Actions Column -->
-                          <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="flex gap-1">
-                              <button 
-                                @click="viewCustomerDetails(customer)"
-                                class="p-1.5 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-sm hover:shadow"
-                                title="View Details"
-                              >
-                                <EyeIcon class="w-4 h-4" />
-                              </button>
-                              <button 
-                                v-if="permissions.edit"
-                                @click="editCustomer(customer)"
-                                class="p-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow"
-                                title="Edit Customer"
-                              >
-                                <PencilIcon class="w-4 h-4" />
-                              </button>
-                              <button 
-                                v-if="permissions.delete"
-                                @click="deleteCustomer(customer.id)"
-                                class="p-1.5 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg hover:from-red-600 hover:to-pink-600 transition-all duration-200 shadow-sm hover:shadow"
-                                title="Delete Customer"
-                              >
-                                <TrashIcon class="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Pagination -->
-              <div v-if="customers.links && customers.links.length > 3" class="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-t border-gray-200">
-                <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
-                  <div class="text-xs text-gray-600">
-                    Showing {{ customers.meta?.from || 0 }}-{{ customers.meta?.to || 0 }} of {{ customers.meta?.total || 0 }}
-                  </div>
+                  <!-- Page Numbers -->
                   <div class="flex items-center gap-1">
-                    <!-- Previous Page -->
                     <button 
-                      v-if="customers.links[0].url"
-                      @click="visitPage(customers.links[0].url)"
-                      class="p-2 text-gray-600 hover:text-white hover:bg-gradient-to-r hover:from-teal-500 hover:to-teal-600 rounded-lg transition-all duration-200 shadow-sm hover:shadow"
-                      title="Previous"
-                    >
-                      <ChevronLeftIcon class="w-4 h-4" />
-                    </button>
-
-                    <!-- Page Numbers -->
-                    <div class="flex items-center gap-1">
-                      <button 
-                        v-for="link in customers.links.slice(1, -1)"
-                        :key="link.label"
-                        :disabled="!link.url"
-                        @click="visitPage(link.url)"
-                        class="min-w-[32px] h-8 px-2 text-sm font-medium rounded-lg transition-all duration-200 shadow-sm"
-                        :class="link.active 
-                          ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow' 
-                          : 'text-gray-600 bg-white border border-gray-300 hover:bg-gradient-to-r hover:from-teal-50 hover:to-teal-100 hover:border-teal-300'"
-                        v-html="link.label"
-                      ></button>
-                    </div>
-
-                    <!-- Next Page -->
-                    <button 
-                      v-if="customers.links[customers.links.length - 1].url"
-                      @click="visitPage(customers.links[customers.links.length - 1].url)"
-                      class="p-2 text-gray-600 hover:text-white hover:bg-gradient-to-r hover:from-teal-500 hover:to-teal-600 rounded-lg transition-all duration-200 shadow-sm hover:shadow"
-                      title="Next"
-                    >
-                      <ChevronRightIcon class="w-4 h-4" />
-                    </button>
+                      v-for="link in customers.links.slice(1, -1)"
+                      :key="link.label"
+                      :disabled="!link.url"
+                      @click="visitPage(link.url)"
+                      class="min-w-[32px] h-8 px-2 text-xs font-medium rounded-lg transition-all duration-300 shadow-sm"
+                      :class="link.active 
+                        ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow' 
+                        : 'text-gray-600 bg-white border border-gray-300 hover:bg-gradient-to-r hover:from-teal-50 hover:to-teal-100 hover:border-teal-300'"
+                      v-html="link.label"
+                    ></button>
                   </div>
+
+                  <!-- Next Page -->
+                  <button 
+                    v-if="customers.links[customers.links.length - 1].url"
+                    @click="visitPage(customers.links[customers.links.length - 1].url)"
+                    class="p-2 text-gray-600 hover:text-white hover:bg-gradient-to-r hover:from-teal-500 hover:to-teal-600 rounded-lg transition-all duration-300 shadow-sm hover:shadow"
+                    title="Next"
+                  >
+                    <ChevronRightIcon class="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -565,7 +431,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Sidebar from '@/Pages/Admin/Sidebar.vue'
 import EditCustomerModal from '@/Pages/Admin/Customers/EditCustomerModal.vue'
@@ -577,24 +443,19 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   XMarkIcon,
-  Bars3Icon,
   TrashIcon,
   FunnelIcon,
   ChevronDownIcon,
-  MapPinIcon,
   BuildingOfficeIcon,
   ArrowPathIcon,
   CheckIcon,
-  TagIcon,
   EnvelopeIcon,
   PhoneIcon,
-  Cog6ToothIcon,
   MagnifyingGlassIcon,
   CreditCardIcon,
   UserIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  // Status icons
   XCircleIcon,
   DocumentIcon
 } from '@heroicons/vue/24/outline'
@@ -609,7 +470,6 @@ const props = defineProps({
 })
 
 // State
-const mobileSidebarOpen = ref(false)
 const loading = ref(false)
 const isFilterExpanded = ref(false)
 const search = ref(props.filters?.search || '')
@@ -640,7 +500,7 @@ const hasCustomers = computed(() => {
 })
 
 const totalCustomers = computed(() => {
-  return props.customers?.data?.length || 0
+  return props.customers?.meta?.total || props.customers?.data?.length || 0
 })
 
 const draftCount = computed(() => {
@@ -681,7 +541,10 @@ const activeFilterTags = computed(() => {
       label: `Status: ${getStatusLabel(statusFilter.value)}`,
       icon: getFilterIcon(statusFilter.value),
       class: 'bg-blue-50 text-blue-700 border-blue-200',
-      remove: () => statusFilter.value = 'all'
+      remove: () => {
+        statusFilter.value = 'all'
+        applyFilters()
+      }
     })
   }
   
@@ -694,6 +557,7 @@ const activeFilterTags = computed(() => {
       class: 'bg-green-50 text-green-700 border-green-200',
       remove: () => {
         cityFilter.value = ''
+        applyFilters()
       }
     })
   }
@@ -704,7 +568,10 @@ const activeFilterTags = computed(() => {
       label: `Payment: ${formatPaymentStatus(paymentStatusFilter.value)}`,
       icon: CreditCardIcon,
       class: 'bg-purple-50 text-purple-700 border-purple-200',
-      remove: () => paymentStatusFilter.value = ''
+      remove: () => {
+        paymentStatusFilter.value = ''
+        applyFilters()
+      }
     })
   }
   
@@ -714,7 +581,10 @@ const activeFilterTags = computed(() => {
       label: `Search: "${search.value}"`,
       icon: MagnifyingGlassIcon,
       class: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-      remove: () => search.value = ''
+      remove: () => {
+        search.value = ''
+        applyFilters()
+      }
     })
   }
   
@@ -733,7 +603,9 @@ const filteredCustomers = computed(() => {
       customer.name?.toLowerCase().includes(searchLower) ||
       customer.email?.toLowerCase().includes(searchLower) ||
       customer.phone?.toLowerCase().includes(searchLower) ||
-      customer.city?.name?.toLowerCase().includes(searchLower)
+      customer.city?.name?.toLowerCase().includes(searchLower) ||
+      customer.subcity?.name?.toLowerCase().includes(searchLower) ||
+      customer.text_location?.toLowerCase().includes(searchLower)
     )
   }
   
@@ -815,18 +687,6 @@ function getStatusDotClass(status) {
   return classes[status] || 'bg-gray-400'
 }
 
-function getStatusBadgeClass(status) {
-  if (!status) return 'bg-gray-100 text-gray-800 shadow-sm'
-  
-  const classes = {
-    draft: 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 shadow-sm',
-    contract_created: 'bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-800 shadow-sm',
-    accepted: 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 shadow-sm',
-    rejected: 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 shadow-sm'
-  }
-  return classes[status] || 'bg-gray-100 text-gray-800 shadow-sm'
-}
-
 function getPaymentStatusBadgeClass(status) {
   if (!status) return 'bg-gray-100 text-gray-800 shadow-sm'
   
@@ -891,9 +751,24 @@ function formatPaymentStatus(status) {
   return statusMap[status] || status
 }
 
+function formatDate(dateString) {
+  if (!dateString) return 'N/A'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric',
+    year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+  })
+}
+
 function formatNumber(num) {
   if (!num) return '0.00'
   return parseFloat(num).toFixed(2)
+}
+
+function truncateText(text, maxLength) {
+  if (!text || text.length <= maxLength) return text
+  return text.substring(0, maxLength) + '...'
 }
 
 // Flash message methods
@@ -947,10 +822,32 @@ const visitPage = (url) => {
 
 const setStatusFilter = (filter) => {
   statusFilter.value = filter
+  applyFilters()
 }
 
 const onCityFilterChange = () => {
   isFilterExpanded.value = false
+  applyFilters()
+}
+
+const onPaymentStatusChange = () => {
+  isFilterExpanded.value = false
+  applyFilters()
+}
+
+// Debounce for search
+let searchTimeout = null
+
+const onSearchInput = () => {
+  // Clear previous timeout
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+  
+  // Set new timeout
+  searchTimeout = setTimeout(() => {
+    applyFilters()
+  }, 500)
 }
 
 const applyFilters = () => {
@@ -962,6 +859,8 @@ const applyFilters = () => {
   
   loading.value = true
   router.get('/admin/customers', params, {
+    preserveState: true,
+    preserveScroll: true,
     onFinish: () => {
       loading.value = false
       isFilterExpanded.value = false
@@ -1001,7 +900,7 @@ const deleteCustomer = (customerId) => {
   }
 }
 
-// Close dropdown when clicking outside
+// Setup click outside listener for filters only
 onMounted(() => {
   const handleClickOutside = (event) => {
     if (isFilterExpanded.value && !event.target.closest('.filters-section')) {
@@ -1015,9 +914,16 @@ onMounted(() => {
     document.removeEventListener('click', handleClickOutside)
   }
 })
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+})
 </script>
 
-<style>
+<style scoped>
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -1042,6 +948,33 @@ onMounted(() => {
 * {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform, background-image;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+  transition-duration: 300ms;
+}
+
+/* Dropdown animation */
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dropdown-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Prevent overflow */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.min-w-0 {
+  min-width: 0;
 }
 </style>
